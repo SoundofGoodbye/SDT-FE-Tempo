@@ -14,6 +14,14 @@ import LoginForm from "@/components/LoginForm";
 import { DeliveryDashboard } from "@/components/DeliveryDashboard";
 import { useState } from "react";
 
+interface LoginFormProps {
+  onLogin: (userData: { name: string; companyId: number }) => void;
+}
+
+interface LoginFormComponentProps {
+  onLoginSuccess?: () => void;
+}
+
 export default function Home() {
   // In a real app, this would be determined by checking authentication state
   // For now, we'll use a simple state to toggle between logged in and logged out
@@ -59,7 +67,11 @@ export default function Home() {
                 </CardDescription>
               </CardHeader>
               <CardContent>
-                <LoginForm onLogin={handleLogin} />
+                <LoginForm
+                  onLoginSuccess={() =>
+                    handleLogin({ name: "demo", companyId: 1 })
+                  }
+                />
               </CardContent>
             </Card>
           </div>

@@ -58,7 +58,7 @@ const LoginForm = ({ onLoginSuccess = () => {} }: LoginFormProps) => {
         localStorage.setItem("companyId", "1");
 
         onLoginSuccess();
-        router.push("/");
+        router.push("/dashboard");
       } else {
         throw new Error("Invalid username or password");
       }
