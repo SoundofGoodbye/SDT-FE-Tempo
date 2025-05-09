@@ -31,8 +31,12 @@ import { Alert, AlertDescription } from "./ui/alert";
 
 interface Product {
   id: number;
-  name: string;
+  name?: string;
+  itemName?: string;
   quantity: number;
+  unit?: string;
+  // Add any additional fields that might be in the API response
+  [key: string]: any;
 }
 
 interface ProductListDetailsProps {
@@ -57,6 +61,8 @@ const ProductListDetails = ({
     { id: 4, name: "Cheese", quantity: 5 },
     { id: 5, name: "Yogurt", quantity: 15 },
   ]);
+  // Track the current productListId internally to handle updates from the backend
+  const [currentProductListId, setCurrentProductListId] = useState<number>(productListId);
   const [deliveryStatus, setDeliveryStatus] = useState<
     "not_started" | "in_progress" | "completed"
   >("not_started");
@@ -70,52 +76,69 @@ const ProductListDetails = ({
   const [error, setError] = useState<string | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
 
-  // Simulate fetching product list details
+  // Initialize currentProductListId with the prop value when it changes
   useEffect(() => {
-    // In a real app, this would be an API call
-    // fetch(`http://localhost:8080/company/${companyId}/productListItems/${productListId}/`)
-    //   .then(response => response.json())
-    //   .then(data => setProducts(data))
-    //   .catch(error => setError("Failed to load product list"));
+    setCurrentProductListId(productListId);
+  }, [productListId]);
 
-    // Using mock data for now
-    console.log(`Fetching product list ${productListId} for shop ${shopId}`);
-  }, [companyId, productListId, shopId]);
+  // Fetch product list details
+  useEffect(() => {
+    fetch(`http://localhost:8080/company/${companyId}/productListItems/${currentProductListId}/`)
+      .then(response => response.json())
+      .then(data => {
+        // Extract products from payload
+        const productsData = data?.payload || [];
+        setProducts(Array.isArray(productsData) ? productsData : []);
+      })
+      .catch(error => setError("Failed to load product list"));
+  }, [companyId, currentProductListId, shopId]);
 
   const handleStartDelivery = () => {
-    // In a real app, this would be an API call to create a new version
-    // fetch(`http://localhost:8080/company/${companyId}/productList/${productListId}/startDelivery`, {
-    //   method: 'POST'
-    // })
-    //   .then(response => response.json())
-    //   .then(data => {
-    //     setDeliveryStatus("in_progress");
-    //     setSuccessMessage("Delivery started successfully");
-    //   })
-    //   .catch(error => setError("Failed to start delivery"));
-
-    // Using mock response for now
-    setDeliveryStatus("in_progress");
-    setSuccessMessage("Delivery started successfully");
-    setTimeout(() => setSuccessMessage(null), 3000);
+    fetch(`http://localhost:8080/company/${companyId}/productList/${currentProductListId}/startDelivery`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        deliveryStep: "INITIAL_REQUEST",
+        description: "Initial product list request"
+      })
+    })
+      .then(response => response.json())
+      .then(data => {
+        // Process response data if needed
+        const responseData = data?.payload || {};
+        // Check if the response contains a new product list ID
+        if (responseData.productListDetailsId) {
+          setCurrentProductListId(responseData.productListDetailsId);
+        }
+        setDeliveryStatus("in_progress");
+        setSuccessMessage("Delivery started successfully");
+        setTimeout(() => setSuccessMessage(null), 3000);
+      })
+      .catch(error => setError("Failed to start delivery"));
   };
 
   const handleCompleteDelivery = () => {
-    // In a real app, this would be an API call
-    // fetch(`http://localhost:8080/company/${companyId}/productList/${productListId}/completeDelivery`, {
-    //   method: 'POST'
-    // })
-    //   .then(response => response.json())
-    //   .then(data => {
-    //     setDeliveryStatus("completed");
-    //     setSuccessMessage("Delivery completed successfully");
-    //   })
-    //   .catch(error => setError("Failed to complete delivery"));
-
-    // Using mock response for now
-    setDeliveryStatus("completed");
-    setSuccessMessage("Delivery completed successfully");
-    setTimeout(() => setSuccessMessage(null), 3000);
+    fetch(`http://localhost:8080/company/${companyId}/productList/${currentProductListId}/completeDelivery`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        deliveryStep: "OFF_LOADING",
+        description: "Report missing or broken on delivery"
+      })
+    })
+      .then(response => response.json())
+      .then(data => {
+        // Process response data if needed
+        const responseData = data?.payload || {};
+        // Check if the response contains a new product list ID
+        if (responseData.productListDetailsId) {
+          setCurrentProductListId(responseData.productListDetailsId);
+        }
+        setDeliveryStatus("completed");
+        setSuccessMessage("Delivery completed successfully");
+        setTimeout(() => setSuccessMessage(null), 3000);
+      })
+      .catch(error => setError("Failed to complete delivery"));
   };
 
   const handleEditQuantity = (product: Product) => {
@@ -125,51 +148,99 @@ const ProductListDetails = ({
 
   const handleSaveQuantity = () => {
     if (editingProduct) {
-      // In a real app, this would be an API call
-      // fetch(`http://localhost:8080/company/${companyId}/productListItems/${productListId}`, {
-      //   method: 'POST',
-      //   headers: { 'Content-Type': 'application/json' },
-      //   body: JSON.stringify({ ...editingProduct, quantity: newQuantity })
-      // })
-      //   .then(response => response.json())
-      //   .then(data => {
-      //     setProducts(products.map(p => p.id === editingProduct.id ? { ...p, quantity: newQuantity } : p));
-      //     setEditingProduct(null);
-      //     setSuccessMessage("Product quantity updated");
-      //   })
-      //   .catch(error => setError("Failed to update product quantity"));
+      // Determine if we're adding or removing stock
+      const isAddingStock = newQuantity > editingProduct.quantity;
+      const deliveryStep = isAddingStock ? "ADD_STOCK" : "REMOVE_STOCK";
+      const description = isAddingStock 
+        ? `Increasing quantity for ${editingProduct.itemName || editingProduct.name || "item"}`
+        : `Decreasing quantity for ${editingProduct.itemName || editingProduct.name || "item"}`;
 
-      // Using mock response for now
-      setProducts(
-        products.map((p) =>
-          p.id === editingProduct.id ? { ...p, quantity: newQuantity } : p,
-        ),
-      );
-      setEditingProduct(null);
-      setSuccessMessage("Product quantity updated");
-      setTimeout(() => setSuccessMessage(null), 3000);
+      fetch(`http://localhost:8080/company/${companyId}/productListItems/${currentProductListId}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ 
+          deliveryStep,
+          description,
+          payload: [
+            {
+              id: editingProduct.id,
+              quantity: newQuantity
+            }
+          ]
+        })
+      })
+        .then(response => response.json())
+        .then(data => {
+          // Extract the updated product list from the response
+          const updatedProducts = data?.payload || [];
+          if (Array.isArray(updatedProducts) && updatedProducts.length > 0) {
+            setProducts(updatedProducts);
+
+            // Check if the first product has a new productListDetailsId
+            if (updatedProducts[0] && updatedProducts[0].productListDetailsId) {
+              setCurrentProductListId(updatedProducts[0].productListDetailsId);
+            }
+          } else {
+            // Fallback to manual update if response doesn't contain expected data
+            setProducts(products.map(p => p.id === editingProduct.id ? { ...p, quantity: newQuantity } : p));
+          }
+          setEditingProduct(null);
+          setSuccessMessage("Product quantity updated");
+          setTimeout(() => setSuccessMessage(null), 3000);
+        })
+        .catch(error => setError("Failed to update product quantity"));
     }
   };
 
   const handleRemoveProduct = (productId: number) => {
-    // In a real app, this would be an API call
-    // fetch(`http://localhost:8080/company/${companyId}/productList/${productListId}/productItems/${productId}`, {
-    //   method: 'DELETE'
-    // })
-    //   .then(response => {
-    //     if (response.ok) {
-    //       setProducts(products.filter(p => p.id !== productId));
-    //       setSuccessMessage("Product removed successfully");
-    //     } else {
-    //       setError("Failed to remove product");
-    //     }
-    //   })
-    //   .catch(error => setError("Failed to remove product"));
+    // Find the product to get its name for the description
+    const product = products.find(p => p.id === productId);
+    const productName = product ? (product.itemName || product.name || "item") : "item";
 
-    // Using mock response for now
-    setProducts(products.filter((p) => p.id !== productId));
-    setSuccessMessage("Product removed successfully");
-    setTimeout(() => setSuccessMessage(null), 3000);
+    fetch(`http://localhost:8080/company/${companyId}/productList/${currentProductListId}/productItems/${productId}`, {
+      method: 'DELETE',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        deliveryStep: "REMOVE_STOCK",
+        description: `Removing ${productName} from product list`
+      })
+    })
+      .then(response => {
+        if (response.ok) {
+          // Try to parse the response to get the updated product list
+          return response.json().then(data => {
+            // Extract the updated product list from the response
+            const updatedProducts = data?.payload || [];
+            if (Array.isArray(updatedProducts)) {
+              setProducts(updatedProducts);
+
+              // Check if the first product has a new productListDetailsId
+              if (updatedProducts.length > 0 && updatedProducts[0].productListDetailsId) {
+                setCurrentProductListId(updatedProducts[0].productListDetailsId);
+              }
+            } else {
+              // Fallback to manual update if response doesn't contain expected data
+              setProducts(products.filter(p => p.id !== productId));
+            }
+            setSuccessMessage("Product removed successfully");
+            setTimeout(() => setSuccessMessage(null), 3000);
+          }).catch(() => {
+            // If we can't parse the response, fall back to manual update
+            setProducts(products.filter(p => p.id !== productId));
+            setSuccessMessage("Product removed successfully");
+            setTimeout(() => setSuccessMessage(null), 3000);
+          });
+        } else {
+          // Try to parse the error response
+          return response.json().then(data => {
+            const errorMsg = data?.message || "Failed to remove product";
+            setError(errorMsg);
+          }).catch(() => {
+            setError("Failed to remove product");
+          });
+        }
+      })
+      .catch(error => setError("Failed to remove product"));
   };
 
   const handleAddProduct = () => {
@@ -183,28 +254,53 @@ const ProductListDetails = ({
       return;
     }
 
-    // In a real app, this would be an API call
-    // fetch(`http://localhost:8080/company/${companyId}/productList/${productListId}/productItems`, {
-    //   method: 'PUT',
-    //   headers: { 'Content-Type': 'application/json' },
-    //   body: JSON.stringify(newProduct)
-    // })
-    //   .then(response => response.json())
-    //   .then(data => {
-    //     setProducts([...products, { ...newProduct, id: Date.now() }]);
-    //     setNewProduct({ name: "", quantity: 0 });
-    //     setIsAddProductDialogOpen(false);
-    //     setSuccessMessage("Product added successfully");
-    //   })
-    //   .catch(error => setError("Failed to add product"));
+    fetch(`http://localhost:8080/company/${companyId}/productList/${currentProductListId}/productItems`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        ...newProduct,
+        deliveryStep: "ADD_STOCK",
+        description: `Adding new product: ${newProduct.name}`
+      })
+    })
+      .then(response => response.json())
+      .then(data => {
+        // Extract the updated product list from the response
+        const updatedProducts = data?.payload || [];
+        if (Array.isArray(updatedProducts) && updatedProducts.length > 0) {
+          // Update the entire product list with the response
+          setProducts(updatedProducts);
 
-    // Using mock response for now
-    const newProductWithId = { ...newProduct, id: Date.now() };
-    setProducts([...products, newProductWithId]);
-    setNewProduct({ name: "", quantity: 0 });
-    setIsAddProductDialogOpen(false);
-    setSuccessMessage("Product added successfully");
-    setTimeout(() => setSuccessMessage(null), 3000);
+          // Check if the first product has a new productListDetailsId
+          if (updatedProducts[0] && updatedProducts[0].productListDetailsId) {
+            setCurrentProductListId(updatedProducts[0].productListDetailsId);
+          }
+
+          setNewProduct({ name: "", quantity: 0 });
+          setIsAddProductDialogOpen(false);
+          setSuccessMessage("Product added successfully");
+          setTimeout(() => setSuccessMessage(null), 3000);
+        } else {
+          // Fallback: Extract single product from payload
+          const productData = data?.payload || {};
+          if (productData.id) {
+            setProducts([...products, productData]);
+
+            // Check if the product has a new productListDetailsId
+            if (productData.productListDetailsId) {
+              setCurrentProductListId(productData.productListDetailsId);
+            }
+
+            setNewProduct({ name: "", quantity: 0 });
+            setIsAddProductDialogOpen(false);
+            setSuccessMessage("Product added successfully");
+            setTimeout(() => setSuccessMessage(null), 3000);
+          } else {
+            setError("Failed to add product: Invalid response data");
+          }
+        }
+      })
+      .catch(error => setError("Failed to add product"));
   };
 
   const getStatusBadge = () => {
@@ -228,7 +324,7 @@ const ProductListDetails = ({
             <div>
               <CardTitle className="text-2xl">{shopName}</CardTitle>
               <p className="text-muted-foreground mt-1">
-                Product List ID: {productListId}
+                Product List ID: {currentProductListId}
               </p>
               <p className="text-muted-foreground">Date: {date}</p>
             </div>
@@ -264,7 +360,7 @@ const ProductListDetails = ({
               <TableBody>
                 {products.map((product) => (
                   <TableRow key={product.id}>
-                    <TableCell>{product.name}</TableCell>
+                    <TableCell>{product.itemName || product.name || product.productName || "Unknown Product"}</TableCell>
                     <TableCell>
                       {editingProduct?.id === product.id ? (
                         <div className="flex items-center space-x-2">
@@ -292,7 +388,7 @@ const ProductListDetails = ({
                           </Button>
                         </div>
                       ) : (
-                        <span>{product.quantity}</span>
+                        <span>{product.quantity}{product.unit ? ` ${product.unit}` : ''}</span>
                       )}
                     </TableCell>
                     {deliveryStatus === "in_progress" && (
@@ -337,7 +433,7 @@ const ProductListDetails = ({
           </div>
           <div className="flex space-x-2">
             {deliveryStatus === "not_started" && (
-              <Button onClick={handleStartDelivery}>Start Delivery</Button>
+              <Button onClick={handleStartDelivery}>Start Onboarding</Button>
             )}
             {deliveryStatus === "in_progress" && (
               <Button

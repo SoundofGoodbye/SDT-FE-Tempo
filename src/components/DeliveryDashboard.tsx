@@ -15,16 +15,21 @@ import ProductListDetails from "./ProductListDetails";
 
 interface Shop {
   id: number;
-  name: string;
-  address: string;
+  shopName: string;
+  locationId: number;
+  companyId: number;
 }
 
 interface DeliveryInfo {
   id: number;
+  productListId: number;
+  productListIdNumber: string;
+  companyId: number;
+  versionId: number;
   shopId: number;
   date: string;
-  status: "pending" | "in_progress" | "completed";
-  productCount: number;
+  status?: "pending" | "in_progress" | "completed";
+  productCount?: number;
 }
 
 interface DeliveryDashboardProps {
@@ -50,19 +55,11 @@ export function DeliveryDashboard({
     const fetchShops = async () => {
       try {
         setLoading(true);
-        // In a real implementation, this would be an actual API call
-        // const response = await fetch(`http://localhost:8080/company/${companyId}/shop/`);
-        // const data = await response.json();
-
-        // Mock data for UI scaffolding
-        const mockShops: Shop[] = [
-          { id: 1, name: "Downtown Grocery", address: "123 Main St" },
-          { id: 2, name: "Westside Market", address: "456 West Ave" },
-          { id: 3, name: "Northside Deli", address: "789 North Blvd" },
-          { id: 4, name: "Eastside Bakery", address: "321 East Rd" },
-        ];
-
-        setShops(mockShops);
+        const response = await fetch(`http://localhost:8080/company/${companyId}/shop/`);
+        const data = await response.json();
+        // Extract shops from payload and ensure it's always an array
+        const shopsData = data?.payload || [];
+        setShops(Array.isArray(shopsData) ? shopsData : []);
         setLoading(false);
       } catch (err) {
         setError("Failed to fetch shops. Please try again later.");
@@ -80,43 +77,21 @@ export function DeliveryDashboard({
         setLoading(true);
         const formattedDate = format(selectedDate, "yyyy-MM-dd");
 
-        // In a real implementation, we would fetch deliveries for each shop
-        // const deliveryData = {};
-        // for (const shop of shops) {
-        //   const response = await fetch(
-        //     `http://localhost:8080/company/${companyId}/productList/latest/?shopId=${shop.id}&date=${formattedDate}`
-        //   );
-        //   const data = await response.json();
-        //   deliveryData[shop.id] = data;
-        // }
+        const deliveryData = {};
+        for (const shop of shops) {
+          const response = await fetch(
+            `http://localhost:8080/company/${companyId}/productList/latest/?shopId=${shop.id}&date=${formattedDate}`
+          );
+          const data = await response.json();
+          // Extract delivery info from payload
+          const payloadData = data?.payload && data.payload.length > 0 ? data.payload[0] : null;
+          if (payloadData) {
+            console.log(payloadData);
+            deliveryData[shop.id] = payloadData;
+          }
+        }
 
-        // Mock data for UI scaffolding
-        const mockDeliveries: Record<number, DeliveryInfo> = {
-          1: {
-            id: 101,
-            shopId: 1,
-            date: formattedDate,
-            status: "pending",
-            productCount: 15,
-          },
-          2: {
-            id: 102,
-            shopId: 2,
-            date: formattedDate,
-            status: "in_progress",
-            productCount: 8,
-          },
-          3: {
-            id: 103,
-            shopId: 3,
-            date: formattedDate,
-            status: "completed",
-            productCount: 12,
-          },
-          // Shop 4 has no delivery for this date
-        };
-
-        setDeliveries(mockDeliveries);
+        setDeliveries(deliveryData);
         setLoading(false);
       } catch (err) {
         setError("Failed to fetch deliveries. Please try again later.");
@@ -162,10 +137,10 @@ export function DeliveryDashboard({
         </Button>
         <ProductListDetails
           companyId={companyId}
-          shop={selectedShop}
-          productListId={deliveries[selectedShop.id]?.id || 0}
+          shopId={selectedShop.id}
+          shopName={selectedShop.shopName}
+          productListId={deliveries[selectedShop.id]?.productListId || 0}
           date={format(selectedDate, "yyyy-MM-dd")}
-          status={deliveries[selectedShop.id]?.status || "pending"}
         />
       </div>
     );
@@ -213,16 +188,16 @@ export function DeliveryDashboard({
           </div>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {shops.map((shop) => {
+            {Array.isArray(shops) && shops.map((shop) => {
               const delivery = deliveries[shop.id];
               const hasDelivery = !!delivery;
 
               return (
                 <Card key={shop.id} className="overflow-hidden">
                   <CardHeader className="pb-2">
-                    <CardTitle>{shop.name}</CardTitle>
+                    <CardTitle>{shop.shopName}</CardTitle>
                     <p className="text-sm text-muted-foreground">
-                      {shop.address}
+                      Location ID: {shop.locationId}
                     </p>
                   </CardHeader>
                   <CardContent>
@@ -237,11 +212,11 @@ export function DeliveryDashboard({
                           </div>
                           <div className="flex justify-between items-center">
                             <span className="text-sm">Status:</span>
-                            <span
-                              className={`text-xs px-2 py-1 rounded-full font-medium ${getStatusColor(delivery.status)}`}
-                            >
-                              {delivery.status.replace("_", " ").toUpperCase()}
-                            </span>
+                            {/*<span*/}
+                            {/*  className={`text-xs px-2 py-1 rounded-full font-medium ${getStatusColor(delivery.status)}`}*/}
+                            {/*>*/}
+                            {/*  {delivery.status.replace("_", " ").toUpperCase()}*/}
+                            {/*</span>*/}
                           </div>
                         </>
                       ) : (
