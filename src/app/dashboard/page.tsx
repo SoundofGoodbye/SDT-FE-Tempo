@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
 import { DeliveryDashboard } from "@/components/DeliveryDashboard";
+import DeliveriesCalendarPage from "@/components/DeliveriesCalendarPage";
 
 export default function DashboardPage() {
   const [user, setUser] = useState<{ name: string; companyId: number } | null>(
@@ -61,6 +62,7 @@ export default function DashboardPage() {
           <TabsList className="mb-6">
             <TabsTrigger value="dashboard">Dashboard</TabsTrigger>
             <TabsTrigger value="history">Delivery History</TabsTrigger>
+            <TabsTrigger value="calendar">Calendar</TabsTrigger>
           </TabsList>
           <TabsContent value="dashboard" className="w-full">
             <DeliveryDashboard companyId={user?.companyId || 1} />
@@ -76,6 +78,12 @@ export default function DashboardPage() {
                 <p>Delivery history will be displayed here</p>
               </div>
             </div>
+          </TabsContent>
+          <TabsContent value="calendar">
+            <DeliveriesCalendarPage
+              companyId={user?.companyId || 1}
+              shopId={1}
+            />
           </TabsContent>
         </Tabs>
 
