@@ -7,12 +7,14 @@ import { Card, CardContent, CardHeader, CardTitle } from "./ui/card";
 import VersionSelector from "./VersionSelector";
 import DiffTable, { DiffItem } from "./DiffTable";
 import { ArrowLeft, Download } from "lucide-react";
+import apiClient, { ApiResponse } from "@/lib/api-client";
 
 interface Version {
   id: string;
   stepType: string;
   timestamp: string;
   productListDetailsId: string;
+  stepDescription: string | null;
 }
 
 interface ProductItem {
@@ -47,16 +49,24 @@ export default function VersionComparisonPage() {
       try {
         setIsLoadingVersions(true);
         const companyId = "1"; // Replace with actual company ID from context/auth
-        const response = await fetch(
-          `/api/company/${companyId}/productList?shopId=${shopId}&date=${date}`,
+        const data = await apiClient.get<ApiResponse<any[]>>(
+          `company/${companyId}/productList?shopId=${shopId}&date=${date}`
         );
-
-        if (!response.ok) {
-          throw new Error("Failed to fetch versions");
+        // Extract the payload from the API response
+        if (data && data.payload && Array.isArray(data.payload)) {
+          // Map the payload to match the Version interface
+          const mappedVersions = data.payload.map((item: any) => ({
+            id: item.versionId.toString(),
+            stepType: item.deliveryStepName,
+            timestamp: new Date().toISOString(), // Using current date as timestamp is not provided in the API
+            productListDetailsId: item.productListDetailsId.toString(),
+            stepDescription: item.stepDescription || null,
+          }));
+          setVersions(mappedVersions);
+        } else {
+          console.error("Invalid API response format:", data);
+          setVersions([]);
         }
-
-        const data = await response.json();
-        setVersions(data);
       } catch (error) {
         console.error("Error fetching versions:", error);
       } finally {
@@ -79,27 +89,35 @@ export default function VersionComparisonPage() {
         const companyId = "1"; // Replace with actual company ID from context/auth
 
         // Fetch both version details in parallel
-        const [responseA, responseB] = await Promise.all([
-          fetch(
-            `/api/company/${companyId}/productListItems/${selectedVersionA.productListDetailsId}`,
+        const [dataA, dataB] = await Promise.all([
+          apiClient.get<ApiResponse<any[]>>(
+            `company/${companyId}/productListItems/${selectedVersionA.productListDetailsId}`
           ),
-          fetch(
-            `/api/company/${companyId}/productListItems/${selectedVersionB.productListDetailsId}`,
+          apiClient.get<ApiResponse<any[]>>(
+            `company/${companyId}/productListItems/${selectedVersionB.productListDetailsId}`
           ),
         ]);
 
-        if (!responseA.ok || !responseB.ok) {
-          throw new Error("Failed to fetch version details");
-        }
+        // Map API response to ProductItem format
+        const mappedItemsA = dataA.payload.map((item: any) => ({
+          productId: item.itemId.toString(),
+          name: item.itemName,
+          quantity: item.quantity,
+          notes: selectedVersionA.stepDescription
+        }));
 
-        const dataA = await responseA.json();
-        const dataB = await responseB.json();
+        const mappedItemsB = dataB.payload.map((item: any) => ({
+          productId: item.itemId.toString(),
+          name: item.itemName,
+          quantity: item.quantity,
+          notes: selectedVersionB.stepDescription
+        }));
 
-        setItemsA(dataA);
-        setItemsB(dataB);
+        setItemsA(mappedItemsA);
+        setItemsB(mappedItemsB);
 
         // Create diff data
-        createDiffData(dataA, dataB);
+        createDiffData(mappedItemsA, mappedItemsB);
       } catch (error) {
         console.error("Error fetching version details:", error);
       } finally {

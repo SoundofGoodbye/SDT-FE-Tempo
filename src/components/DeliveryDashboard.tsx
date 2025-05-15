@@ -12,6 +12,7 @@ import {
 import { format } from "date-fns";
 import { CalendarIcon, ChevronRight } from "lucide-react";
 import ProductListDetails from "./ProductListDetails";
+import apiClient, { ApiResponse } from "@/lib/api-client";
 
 interface Shop {
   id: number;
@@ -49,14 +50,14 @@ export function DeliveryDashboard({
   const [selectedShop, setSelectedShop] = useState<Shop | null>(null);
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
+  const [datesWithDeliveries, setDatesWithDeliveries] = useState<Date[]>([]);
 
   // Fetch shops for the company
   useEffect(() => {
     const fetchShops = async () => {
       try {
         setLoading(true);
-        const response = await fetch(`http://localhost:8080/company/${companyId}/shop/`);
-        const data = await response.json();
+        const data = await apiClient.get<ApiResponse<Shop[]>>(`company/${companyId}/shop/`);
         // Extract shops from payload and ensure it's always an array
         const shopsData = data?.payload || [];
         setShops(Array.isArray(shopsData) ? shopsData : []);
@@ -70,23 +71,37 @@ export function DeliveryDashboard({
     fetchShops();
   }, [companyId]);
 
-  // Fetch deliveries for the selected date
+  // Fetch all deliveries for the month and mark dates with deliveries
   useEffect(() => {
-    const fetchDeliveries = async () => {
+    const fetchMonthDeliveries = async () => {
       try {
         setLoading(true);
-        const formattedDate = format(selectedDate, "yyyy-MM-dd");
 
+        // Fetch deliveries for each shop for the selected date
+        const formattedDate = format(selectedDate, "yyyy-MM-dd");
         const deliveryData = {};
+
+        // Format the month for the API call (YYYY-MM format)
+        const formattedMonth = format(selectedDate, "yyyy-MM");
+
+        // Fetch delivery dates for the month from the API
+        const calendarData = await apiClient.get<ApiResponse<string[]>>(
+          `company/${companyId}/productList/calendar?&month=${formattedMonth}`
+        );
+
+        // Parse the date strings from the API response and convert to Date objects
+        const deliveryDates = calendarData?.payload?.map(dateStr => new Date(dateStr)) || [];
+
+        // Set the dates with deliveries
+        setDatesWithDeliveries(deliveryDates);
+
+        // Fetch deliveries for the selected date (for the main view)
         for (const shop of shops) {
-          const response = await fetch(
-            `http://localhost:8080/company/${companyId}/productList/latest/?shopId=${shop.id}&date=${formattedDate}`
+          const data = await apiClient.get<ApiResponse<DeliveryInfo[]>>(
+            `company/${companyId}/productList/latest/?shopId=${shop.id}&date=${formattedDate}`
           );
-          const data = await response.json();
-          // Extract delivery info from payload
           const payloadData = data?.payload && data.payload.length > 0 ? data.payload[0] : null;
           if (payloadData) {
-            console.log(payloadData);
             deliveryData[shop.id] = payloadData;
           }
         }
@@ -100,7 +115,7 @@ export function DeliveryDashboard({
     };
 
     if (shops.length > 0) {
-      fetchDeliveries();
+      fetchMonthDeliveries();
     }
   }, [companyId, selectedDate, shops]);
 
@@ -173,6 +188,10 @@ export function DeliveryDashboard({
                 selected={selectedDate}
                 onSelect={(date) => date && setSelectedDate(date)}
                 initialFocus
+                modifiers={{ hasDelivery: datesWithDeliveries }}
+                modifiersClassNames={{
+                  hasDelivery: "bg-green-100 text-green-800 font-bold"
+                }}
               />
             </PopoverContent>
           </Popover>
@@ -188,55 +207,61 @@ export function DeliveryDashboard({
           </div>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {Array.isArray(shops) && shops.map((shop) => {
-              const delivery = deliveries[shop.id];
-              const hasDelivery = !!delivery;
+            {Array.isArray(shops) && 
+              // Sort shops: those with deliveries first, then those without
+              [...shops].sort((a, b) => {
+                const hasDeliveryA = !!deliveries[a.id];
+                const hasDeliveryB = !!deliveries[b.id];
+                if (hasDeliveryA && !hasDeliveryB) return -1;
+                if (!hasDeliveryA && hasDeliveryB) return 1;
+                return 0;
+              }).map((shop) => {
+                const delivery = deliveries[shop.id];
+                const hasDelivery = !!delivery;
 
-              return (
-                <Card key={shop.id} className="overflow-hidden">
-                  <CardHeader className="pb-2">
-                    <CardTitle>{shop.shopName}</CardTitle>
-                    <p className="text-sm text-muted-foreground">
-                      Location ID: {shop.locationId}
-                    </p>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="flex flex-col space-y-4">
-                      {hasDelivery ? (
-                        <>
-                          <div className="flex justify-between items-center">
-                            <span className="text-sm">Products:</span>
-                            <span className="font-medium">
-                              {delivery.productCount}
-                            </span>
-                          </div>
-                          <div className="flex justify-between items-center">
-                            <span className="text-sm">Status:</span>
-                            {/*<span*/}
-                            {/*  className={`text-xs px-2 py-1 rounded-full font-medium ${getStatusColor(delivery.status)}`}*/}
-                            {/*>*/}
-                            {/*  {delivery.status.replace("_", " ").toUpperCase()}*/}
-                            {/*</span>*/}
-                          </div>
-                        </>
-                      ) : (
-                        <p className="text-sm text-muted-foreground italic">
-                          No delivery scheduled for this date
-                        </p>
-                      )}
-                      <Button
-                        onClick={() => handleShopSelect(shop)}
-                        className="w-full mt-2 flex items-center justify-between"
-                        variant={hasDelivery ? "default" : "outline"}
-                      >
-                        {hasDelivery ? "View Details" : "Create Delivery"}
-                        <ChevronRight className="h-4 w-4" />
-                      </Button>
-                    </div>
-                  </CardContent>
-                </Card>
-              );
-            })}
+                return (
+                  <Card key={shop.id} className="overflow-hidden">
+                    <CardHeader className="pb-2">
+                      <CardTitle>{shop.shopName}</CardTitle>
+                      <p className="text-sm text-muted-foreground">
+                        Location ID: {shop.locationId}
+                      </p>
+                    </CardHeader>
+                    <CardContent>
+                      <div className="flex flex-col space-y-4">
+                        {hasDelivery ? (
+                          <>
+                            <div className="flex justify-between items-center">
+                              <span className="text-sm">Products:</span>
+                              <span className="font-medium">
+                                {delivery.productCount}
+                              </span>
+                            </div>
+                            <div className="flex justify-between items-center">
+                              <span className="text-sm">Status:</span>
+                              {/*<span*/}
+                              {/*  className={`text-xs px-2 py-1 rounded-full font-medium ${getStatusColor(delivery.status)}`}*/}
+                              {/*>*/}
+                              {/*  {delivery.status.replace("_", " ").toUpperCase()}*/}
+                              {/*</span>*/}
+                            </div>
+                            <Button
+                              onClick={() => handleShopSelect(shop)}
+                              className="w-full mt-2 flex items-center justify-between"
+                              variant="default"
+                            >
+                              View Details
+                              <ChevronRight className="h-4 w-4" />
+                            </Button>
+                          </>
+                        ) : (
+                          <></>
+                        )}
+                      </div>
+                    </CardContent>
+                  </Card>
+                );
+              })}
           </div>
         )}
       </div>

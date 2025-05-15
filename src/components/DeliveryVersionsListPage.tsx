@@ -5,28 +5,17 @@ import { useParams, useRouter } from 'next/navigation';
 import { Button } from "./ui/button";
 import { StepTimeline, DeliveryStep } from "./StepTimeline";
 import { VersionList, ProductItem } from "./VersionList";
+import apiClient, { ApiResponse } from "@/lib/api-client";
 
-type ApiClient = {
-  get: <T>(url: string) => Promise<T>;
-};
 
-// Mock API client - replace with your actual API client
-const apiClient: ApiClient = {
-  get: async <T>(url: string): Promise<T> => {
-    const response = await fetch(url);
-    if (!response.ok) {
-      throw new Error(`API request failed: ${response.statusText}`);
-    }
-    return response.json();
-  }
-};
+interface DeliveryVersionsListPageProps {
+  shopId: string;
+  date: string;
+  companyId: string;
+}
 
-export default function DeliveryVersionsListPage() {
-  const params = useParams();
+export default function DeliveryVersionsListPage({ shopId, date, companyId }: DeliveryVersionsListPageProps) {
   const router = useRouter();
-  const shopId = params.shopId as string;
-  const date = params.date as string;
-  const companyId = "1"; // Replace with actual company ID from context/auth
 
   const [isLoadingVersions, setIsLoadingVersions] = useState(true);
   const [isLoadingItems, setIsLoadingItems] = useState(false);
@@ -50,24 +39,62 @@ export default function DeliveryVersionsListPage() {
     const fetchVersions = async () => {
       try {
         setIsLoadingVersions(true);
-        const data = await apiClient.get<DeliveryStep[]>(
-          `/api/company/${companyId}/productList?shopId=${shopId}&date=${date}`
+        const response = await apiClient.get<ApiResponse<Array<{
+          versionId: number;
+          deliveryStepName: string;
+          productListDetailsNumber: string;
+          productListDetailsId: number;
+          stepDescription: string;
+          companyId: number;
+        }>>>(
+          `company/${companyId}/productList?shopId=${shopId}&date=${date}`
         );
-        
+
+        // Function to convert API deliveryStepName to UI stepType format
+        const convertDeliveryStepName = (deliveryStepName: string): DeliveryStep['stepType'] => {
+          const mapping: Record<string, DeliveryStep['stepType']> = {
+            "INITIAL_REQUEST": "Initial Request",
+            "ON_BOARDING": "On boarding",
+            "ADD_STOCK": "Add Stock",
+            "REMOVE_STOCK": "Remove Stock",
+            "BROKEN_PRODUCT": "Broken Product",
+            "OFF_LOADING": "Off Loading",
+            "FINAL": "Complete Delivery"
+          };
+          return mapping[deliveryStepName] || deliveryStepName as DeliveryStep['stepType'];
+        };
+
+        // Map the payload to DeliveryStep format
+        const mappedData: DeliveryStep[] = response.payload.map(item => ({
+          id: item.versionId.toString(),
+          stepType: convertDeliveryStepName(item.deliveryStepName),
+          timestamp: new Date().toISOString(), // Using current date as timestamp is not provided in the API
+          productListDetailsId: item.productListDetailsId, // Store the productListDetailsId for fetching product items
+        }));
+
         // Sort versions by timestamp
-        const sortedVersions = [...data].sort((a, b) => 
-          new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime()
+        const sortedVersions = [...mappedData].sort((a, b) =>
+            new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime()
         );
-        
+
         setVersions(sortedVersions);
-        
-        // Select the first available step type
+
+        // Select the latest version (last in the sorted array)
         if (sortedVersions.length > 0) {
-          const firstStepType = sortedVersions[0].stepType;
-          const firstVersionId = sortedVersions[0].id;
-          setSelectedStepType(firstStepType);
-          setSelectedVersionId(firstVersionId);
-          fetchProductItems(firstVersionId);
+          const latestVersion = sortedVersions[sortedVersions.length - 1];
+          const lastStepType = latestVersion.stepType;
+          const lastVersionId = latestVersion.id;
+
+          // Set the selected state
+          setSelectedStepType(lastStepType);
+          setSelectedVersionId(lastVersionId);
+
+          // Fetch product items for the latest version
+          if (latestVersion.productListDetailsId) {
+            fetchProductItems(lastVersionId, latestVersion.productListDetailsId);
+          } else {
+            fetchProductItems(lastVersionId);
+          }
         }
       } catch (error) {
         console.error("Failed to fetch versions:", error);
@@ -80,14 +107,43 @@ export default function DeliveryVersionsListPage() {
   }, [companyId, shopId, date]);
 
   // Fetch product items for a selected version
-  const fetchProductItems = async (versionId: string) => {
+  const fetchProductItems = async (versionId: string, productListDetailsId?: number) => {
     try {
       setIsLoadingItems(true);
-      const data = await apiClient.get<ProductItem[]>(
-        `/api/company/${companyId}/productListItems/${versionId}`
+
+      // Find the version in the versions array to get the productListDetailsId if not provided
+      if (!productListDetailsId) {
+        const selectedVersion = versions.find(v => v.id === versionId);
+        if (!selectedVersion || !selectedVersion.productListDetailsId) {
+          throw new Error("Product list details ID not found for this version");
+        }
+        productListDetailsId = selectedVersion.productListDetailsId;
+      }
+
+      const response = await apiClient.get<ApiResponse<Array<{
+        id: number;
+        shopName: string;
+        itemId: number;
+        quantity: number;
+        unit: string;
+        productListDetailsId: number;
+        itemName: string;
+      }>>>(
+        `company/${companyId}/productListItems/${productListDetailsId}/`
       );
-      setProductItems(data);
-      
+
+      // Map the API response to the ProductItem interface
+      const mappedItems: ProductItem[] = response.payload.map(item => ({
+        id: item.id.toString(),
+        productName: item.itemName,
+        qtyOrdered: item.quantity,
+        qtyActual: item.quantity, // Using the same value for qtyActual as we don't have this in the API response
+        notes: `${item.unit}`, // Using unit as notes
+      }));
+
+      // Set the product items
+      setProductItems(mappedItems || []);
+
       // Add to viewed versions
       setViewedVersions(prev => new Set([...prev, versionId]));
     } catch (error) {
@@ -101,7 +157,14 @@ export default function DeliveryVersionsListPage() {
   const handleSelectStep = (stepType: string, versionId: string) => {
     setSelectedStepType(stepType);
     setSelectedVersionId(versionId);
-    fetchProductItems(versionId);
+
+    // Find the version in the versions array to get the productListDetailsId
+    const selectedVersion = versions.find(v => v.id === versionId);
+    if (selectedVersion && selectedVersion.productListDetailsId) {
+      fetchProductItems(versionId, selectedVersion.productListDetailsId);
+    } else {
+      fetchProductItems(versionId);
+    }
   };
 
   const handleCompareVersions = () => {
