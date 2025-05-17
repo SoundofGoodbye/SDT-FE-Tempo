@@ -74,7 +74,7 @@ export default function DeliveryVersionsListPage({ shopId, date, companyId }: De
 
         // Sort versions by timestamp
         const sortedVersions = [...mappedData].sort((a, b) =>
-            new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime()
+            new Date(a.timestamp!).getTime() - new Date(b.timestamp!).getTime()
         );
 
         setVersions(sortedVersions);
@@ -145,7 +145,11 @@ export default function DeliveryVersionsListPage({ shopId, date, companyId }: De
       setProductItems(mappedItems || []);
 
       // Add to viewed versions
-      setViewedVersions(prev => new Set([...prev, versionId]));
+      setViewedVersions(prev => {
+            const next = new Set(prev);
+            next.add(versionId);
+            return next;
+          });
     } catch (error) {
       console.error("Failed to fetch product items:", error);
       setProductItems([]);
@@ -158,7 +162,7 @@ export default function DeliveryVersionsListPage({ shopId, date, companyId }: De
     setSelectedStepType(stepType);
     setSelectedVersionId(versionId);
 
-    // Find the version in the versions array to get the productListDetailsId
+    // Find the version in the version array to get the productListDetailsId
     const selectedVersion = versions.find(v => v.id === versionId);
     if (selectedVersion && selectedVersion.productListDetailsId) {
       fetchProductItems(versionId, selectedVersion.productListDetailsId);

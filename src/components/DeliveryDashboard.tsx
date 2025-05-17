@@ -79,7 +79,7 @@ export function DeliveryDashboard({
 
         // Fetch deliveries for each shop for the selected date
         const formattedDate = format(selectedDate, "yyyy-MM-dd");
-        const deliveryData = {};
+        const deliveryData: Record<number, DeliveryInfo> = {};
 
         // Format the month for the API call (YYYY-MM format)
         const formattedMonth = format(selectedDate, "yyyy-MM");

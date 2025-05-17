@@ -39,27 +39,27 @@ interface DeliveryMatrixItem {
 }
 
 interface DeliveryMatrixSnapshot {
-  stepName: string;
+  stepName: StepName;
   snapshotDate: string;
   note: string;
   items: DeliveryMatrixItem[];
 }
 
-// Define the checkpoint order (phases)
-const checkpointOrder = [
+const checkpointOrder: StepName[] = [
   "INITIAL_REQUEST",
   "ON_BOARDING",
   "OFF_LOADING",
-  "FINAL"
+  "FINAL",
 ];
 
-// Map step names to user-friendly labels
 const stepLabels = {
   "INITIAL_REQUEST": "Request",
   "ON_BOARDING": "Onboarding",
   "OFF_LOADING": "Mid-Trip",
   "FINAL": "Delivered"
-};
+} as const;
+
+type StepName = keyof typeof stepLabels;
 
 export default function DeliveryMatrixPage() {
   const params = useParams();

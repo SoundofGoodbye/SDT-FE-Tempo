@@ -1,5 +1,6 @@
 "use client";
 
+import type { BadgeProps } from "./ui/badge";
 import React, { useState, useEffect } from "react";
 import { Button } from "./ui/button";
 import {
@@ -42,10 +43,11 @@ interface ProductListItemModel {
   // Add any additional fields that might be in the API response
   [key: string]: any;
 }
+type StepName = "INITIAL_REQUEST" | "ON_BOARDING" | "OFF_LOADING" | "FINAL";
 
 interface VersionModel {
   versionId: number;
-  deliveryStepName: string;
+  deliveryStepName: StepName;
   productListDetailsId: number;
   // Add any additional fields that might be in the API response
   [key: string]: any;
@@ -53,7 +55,7 @@ interface VersionModel {
 
 interface ProductListVersionModel {
   versionId: number;
-  deliveryStepName: string;
+  deliveryStepName: StepName;
   productListDetailsId: number;
   timestamp?: string;
   // Add any additional fields that might be in the API response
@@ -91,14 +93,11 @@ const ProductListDetails = ({
 
   // Add state for versions and currentStepName
   const [versions, setVersions] = useState<ProductListVersionModel[]>([]);
-  const [currentStepName, setCurrentStepName] = useState<string>("");
+  const [currentStepName, setCurrentStepName] = useState<StepName>("INITIAL_REQUEST");
 
   // Define checkpoint steps in order
-  const checkpointOrder = [
-    "INITIAL_REQUEST",
-    "ON_BOARDING",
-    "OFF_LOADING",
-    "FINAL"
+  const checkpointOrder: StepName[] = [
+    "INITIAL_REQUEST","ON_BOARDING","OFF_LOADING","FINAL"
   ];
 
   // Define button labels for each step based on editing state
@@ -119,7 +118,7 @@ const ProductListDetails = ({
       start: "",
       complete: ""
     }
-  };
+  } as const;
 
   // Get the current index in the checkpoint order
   const currentIndex = checkpointOrder.indexOf(currentStepName);
@@ -243,9 +242,9 @@ const ProductListDetails = ({
       };
 
       // Use the same advance endpoint for all steps
-      const resp = await apiClient.post(
-        `/company/${companyId}/productList/${detailsId}/onboard`,
-        body
+      const resp = await apiClient.post<ApiResponse<ProductListItemModel[]>>(
+          `/company/${companyId}/productList/${detailsId}/onboard`,
+          body
       );
 
       // resp.payload is the new list of items
@@ -351,23 +350,24 @@ const ProductListDetails = ({
 
           setNewProduct({ name: "", quantity: 0 });
           setIsAddProductDialogOpen(false);
-        } else {
-          // Fallback: Extract single product from payload
-          const itemData = data?.payload || {};
-          if (itemData.id) {
-            setItems([...items, itemData]);
-
-            // Check if the item has a new productListDetailsId
-            if (itemData.productListDetailsId) {
-              setDetailsId(itemData.productListDetailsId);
-            }
-
-            setNewProduct({ name: "", quantity: 0 });
-            setIsAddProductDialogOpen(false);
-          } else {
-            setError("Failed to add product: Invalid response data");
-          }
         }
+        // else {
+        //   // Fallback: Extract single product from payload
+        //   const itemData = data?.payload || {};
+        //   if (itemData.id) {
+        //     setItems([...items, itemData]);
+        //
+        //     // Check if the item has a new productListDetailsId
+        //     if (itemData.productListDetailsId) {
+        //       setDetailsId(itemData.productListDetailsId);
+        //     }
+        //
+        //     setNewProduct({ name: "", quantity: 0 });
+        //     setIsAddProductDialogOpen(false);
+        //   } else {
+        //     setError("Failed to add product: Invalid response data");
+        //   }
+        // }
       })
       .catch(error => setError("Failed to add product"));
   };
@@ -419,27 +419,17 @@ const ProductListDetails = ({
           {/* Render step tags */}
           <div className="w-full overflow-x-auto mb-6">
             <div className="flex flex-wrap gap-2 mb-2">
-              {checkpointOrder.map((step, index) => {
+              {checkpointOrder.map((step, i) => {
                 // Determine the variant based on the step's position
-                let variant = "outline"; // default for upcoming steps
+                let variant: BadgeProps["variant"] = "outline";
 
-                if (index < currentIndex) {
-                  // completed checkpoints
-                  variant = "secondary";
-                } else if (index === currentIndex) {
-                  // active checkpoint
-                  variant = "default";
-                }
+                if (i < currentIndex)       variant = "secondary";
+                else if (i === currentIndex) variant = "default";
 
                 return (
-                  <div key={`step-${index}`} className="relative">
-                    <Badge
-                      variant={variant}
-                      className="whitespace-nowrap"
-                    >
+                    <Badge key={step} variant={variant}>
                       {step}
                     </Badge>
-                  </div>
                 );
               })}
             </div>

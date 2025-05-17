@@ -37,14 +37,17 @@ export default function DeliveryHistory({
 
 
   // Fetch shop information
-  const fetchShopInfo = async (shopId: string) => {
-    try {
-      return await apiClient.get<ApiResponse<ShopInfo>>(`company/${companyId}/shop/${shopId}/`);
-    } catch (error) {
-      console.error(`Failed to fetch shop info for shop ${shopId}:`, error);
-      return null;
-    }
-  };
+  const fetchShopInfo = async (shopId: string): Promise<ShopInfo | null> => {
+       try {
+           const res = await apiClient.get<ApiResponse<ShopInfo>>(
+                `company/${companyId}/shop/${shopId}/`
+               );
+           return res.payload;  // ← unwrap here
+         } catch (error) {
+           console.error(`Failed to fetch shop info for shop ${shopId}:`, error);
+           return null;
+         }
+     };
 
   // Fetch history data on mount
   useEffect(() => {
