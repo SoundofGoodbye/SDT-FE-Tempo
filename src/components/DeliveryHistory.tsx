@@ -1,20 +1,13 @@
 "use client";
 
-import { useState, useEffect } from "react";
-import { useRouter } from "next/navigation";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
-import { Button } from "@/components/ui/button";
-import { CalendarIcon } from "lucide-react";
-import { Icons } from "@/components/ui/icons";
-import apiClient, { ApiResponse } from "@/lib/api-client";
+import {useEffect, useState} from "react";
+import {useRouter} from "next/navigation";
+import {Card, CardContent, CardHeader, CardTitle} from "@/components/ui/card";
+import {Table, TableBody, TableCell, TableHead, TableHeader, TableRow,} from "@/components/ui/table";
+import {Button} from "@/components/ui/button";
+import {CalendarIcon} from "lucide-react";
+import {Icons} from "@/components/ui/icons";
+import apiClient, {ApiResponse} from "@/lib/api-client";
 
 interface DeliveryHistoryProps {
   companyId?: string;
@@ -27,13 +20,31 @@ interface HistoryRecord {
   lastStepName: string;
 }
 
+interface ShopInfo {
+  id: number;
+  shopName: string;
+  locationId: number;
+  companyId: number;
+}
+
 export default function DeliveryHistory({
   companyId = "1",
 }: DeliveryHistoryProps) {
   const router = useRouter();
   const [loading, setLoading] = useState(true);
   const [historyRecords, setHistoryRecords] = useState<HistoryRecord[]>([]);
+  const [shopInfoMap, setShopInfoMap] = useState<Record<string, ShopInfo>>({});
 
+
+  // Fetch shop information
+  const fetchShopInfo = async (shopId: string) => {
+    try {
+      return await apiClient.get<ApiResponse<ShopInfo>>(`company/${companyId}/shop/${shopId}/`);
+    } catch (error) {
+      console.error(`Failed to fetch shop info for shop ${shopId}:`, error);
+      return null;
+    }
+  };
 
   // Fetch history data on mount
   useEffect(() => {
@@ -43,6 +54,22 @@ export default function DeliveryHistory({
         const response = await apiClient.get<ApiResponse<HistoryRecord[]>>(`company/${companyId}/productList/history`);
 
         setHistoryRecords(response.payload);
+
+        // Fetch shop information for each unique shopId
+        const uniqueShopIds: string[] = Array.from(
+            new Set(response.payload.map(r => r.shopId.toString())));
+        const shopInfoPromises = uniqueShopIds.map(shopId => fetchShopInfo(shopId));
+        const shopInfoResults = await Promise.all(shopInfoPromises);
+
+        // Create a map of shopId to shopInfo
+        const shopMap: Record<string, ShopInfo> = {};
+        uniqueShopIds.forEach((shopId, index) => {
+          const shopInfo = shopInfoResults[index];
+          if (shopInfo) {
+            shopMap[shopId] = shopInfo;
+          }
+        });
+        setShopInfoMap(shopMap);
       } catch (error) {
         console.error("Failed to fetch history data:", error);
         setHistoryRecords([]);
@@ -86,7 +113,7 @@ export default function DeliveryHistory({
                 <TableHeader>
                   <TableRow>
                     <TableHead>Date</TableHead>
-                    <TableHead>Shop ID</TableHead>
+                    <TableHead>Shop Name</TableHead>
                     <TableHead>Versions</TableHead>
                     <TableHead>Last Step</TableHead>
                     <TableHead>Actions</TableHead>
@@ -96,7 +123,7 @@ export default function DeliveryHistory({
                   {historyRecords.map((record) => (
                     <TableRow key={record.date + record.shopId}>
                       <TableCell>{formatDate(record.date)}</TableCell>
-                      <TableCell>{record.shopId}</TableCell>
+                      <TableCell>{shopInfoMap[record.shopId]?.shopName || record.shopId}</TableCell>
                       <TableCell>{record.versionCount}</TableCell>
                       <TableCell>{record.lastStepName}</TableCell>
                       <TableCell>
