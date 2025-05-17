@@ -1,20 +1,20 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { useRouter, useSearchParams } from "next/navigation";
+import { useEffect, useState, Suspense } from "react";
+import { useRouter } from "next/navigation";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
 import { DeliveryDashboard } from "@/components/DeliveryDashboard";
 import DeliveriesCalendarPage from "@/components/DeliveriesCalendarPage";
 import DeliveryHistory from "@/components/DeliveryHistory";
+import { DashboardSearch } from "@/components/DashboardSearch";
 
 export default function DashboardPage() {
   const [user, setUser] = useState<{ name: string; companyId: number } | null>(
     null,
   );
   const router = useRouter();
-  const searchParams = useSearchParams();
-  const tabParam = searchParams.get('tab');
+  const [tabParam, setTabParam] = useState<string | null>("dashboard");
 
   useEffect(() => {
     // Check if user is authenticated
@@ -42,6 +42,9 @@ export default function DashboardPage() {
 
   return (
     <main className="flex min-h-screen flex-col items-center justify-between p-4 md:p-8 bg-background">
+      <Suspense fallback={<div>Loading...</div>}>
+        <DashboardSearch onTabChange={setTabParam} />
+      </Suspense>
       <div className="w-full max-w-7xl">
 
         <Tabs defaultValue={tabParam || "dashboard"} className="w-full">
