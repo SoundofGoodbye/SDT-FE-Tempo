@@ -30,7 +30,7 @@ export function Navigation() {
     localStorage.removeItem("authToken");
     localStorage.removeItem("userId");
     localStorage.removeItem("companyId");
-    router.push("/login");
+    router.push("/");
   };
 
   return (
