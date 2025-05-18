@@ -305,7 +305,7 @@ export default function DeliveryMatrixPage() {
         </CardHeader>
         <CardContent>
           {/* Summary KPI Cards */}
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+          <div className="grid grid-cols-1 sm:grid-cols-1 md:grid-cols-3 gap-4 mb-6">
             <Card>
               <CardContent className="pt-6">
                 <div className="text-center">
@@ -340,13 +340,13 @@ export default function DeliveryMatrixPage() {
             </Card>
           </div>
 
-          <div className="flex items-center mb-4">
+          <div className="flex flex-col sm:flex-row items-start sm:items-center gap-2 mb-4">
             <input
               type="checkbox"
               id="showOnlyChanged"
               checked={showOnlyChanged}
               onChange={(e) => setShowOnlyChanged(e.target.checked)}
-              className="mr-2 h-4 w-4"
+              className="h-4 w-4"
             />
             <label htmlFor="showOnlyChanged" className="text-sm font-medium">
               Show only changed products
@@ -358,7 +358,7 @@ export default function DeliveryMatrixPage() {
                 <TableRow>
                   <TableHead className="w-[200px]">Product</TableHead>
                   {sortedSnapshots.map((snapshot, index) => (
-                    <TableHead key={snapshot.stepName} className="text-center">
+                    <TableHead key={snapshot.stepName} className="text-center whitespace-nowrap">
                       {snapshot.note ? (
                         <TooltipProvider>
                           <Tooltip>
@@ -432,7 +432,7 @@ export default function DeliveryMatrixPage() {
 
       {/* Product Detail Drawer */}
       <Drawer open={drawerOpen} onOpenChange={setDrawerOpen}>
-        <DrawerContent className="max-h-[80vh]">
+        <DrawerContent className="max-h-[80vh] p-4 sm:p-6">
           <DrawerHeader>
             <DrawerTitle>
               {selectedItemId ? itemsMap.get(selectedItemId) || `Item ${selectedItemId}` : 'Product Details'}

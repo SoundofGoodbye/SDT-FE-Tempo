@@ -171,7 +171,7 @@ export function DeliveryDashboard({
           </p>
         </div>
 
-        <div className="flex items-center justify-between">
+        <div className="flex flex-col sm:flex-row sm:justify-between gap-4">
           <h2 className="text-xl font-semibold">
             Deliveries for {format(selectedDate, "MMMM d, yyyy")}
           </h2>
@@ -183,16 +183,19 @@ export function DeliveryDashboard({
               </Button>
             </PopoverTrigger>
             <PopoverContent className="w-auto p-0" align="end">
-              <Calendar
-                mode="single"
-                selected={selectedDate}
-                onSelect={(date) => date && setSelectedDate(date)}
-                initialFocus
-                modifiers={{ hasDelivery: datesWithDeliveries }}
-                modifiersClassNames={{
-                  hasDelivery: "bg-green-100 text-green-800 font-bold"
-                }}
-              />
+              <div className="overflow-x-auto">
+                <Calendar
+                  className="w-full sm:w-auto"
+                  mode="single"
+                  selected={selectedDate}
+                  onSelect={(date) => date && setSelectedDate(date)}
+                  initialFocus
+                  modifiers={{ hasDelivery: datesWithDeliveries }}
+                  modifiersClassNames={{
+                    hasDelivery: "bg-green-100 text-green-800 font-bold"
+                  }}
+                />
+              </div>
             </PopoverContent>
           </Popover>
         </div>
@@ -206,7 +209,7 @@ export function DeliveryDashboard({
             {error}
           </div>
         ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          <div className="grid grid-cols-1 sm:grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             {Array.isArray(shops) && 
               // Sort shops: those with deliveries first, then those without
               [...shops].sort((a, b) => {
@@ -231,13 +234,13 @@ export function DeliveryDashboard({
                       <div className="flex flex-col space-y-4">
                         {hasDelivery ? (
                           <>
-                            <div className="flex justify-between items-center">
+                            <div className="flex flex-col sm:flex-row sm:justify-between gap-2">
                               <span className="text-sm">Products:</span>
                               <span className="font-medium">
                                 {delivery.productCount}
                               </span>
                             </div>
-                            <div className="flex justify-between items-center">
+                            <div className="flex flex-col sm:flex-row sm:justify-between gap-2">
                               <span className="text-sm">Status:</span>
                               {/*<span*/}
                               {/*  className={`text-xs px-2 py-1 rounded-full font-medium ${getStatusColor(delivery.status)}`}*/}

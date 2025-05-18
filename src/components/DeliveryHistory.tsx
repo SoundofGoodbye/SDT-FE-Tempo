@@ -39,10 +39,10 @@ export default function DeliveryHistory({
   // Fetch shop information
   const fetchShopInfo = async (shopId: string): Promise<ShopInfo | null> => {
        try {
-           const res = await apiClient.get<ApiResponse<ShopInfo>>(
-                `company/${companyId}/shop/${shopId}/`
-               );
-           return res.payload;  // ← unwrap here
+         return await apiClient.get<ShopInfo>(
+               `company/${companyId}/shop/${shopId}/`
+           );
+
          } catch (error) {
            console.error(`Failed to fetch shop info for shop ${shopId}:`, error);
            return null;
@@ -117,8 +117,8 @@ export default function DeliveryHistory({
                   <TableRow>
                     <TableHead>Date</TableHead>
                     <TableHead>Shop Name</TableHead>
-                    <TableHead>Versions</TableHead>
-                    <TableHead>Last Step</TableHead>
+                    <TableHead className="hidden sm:table-cell">Versions</TableHead>
+                    <TableHead className="hidden sm:table-cell">Last Step</TableHead>
                     <TableHead>Actions</TableHead>
                   </TableRow>
                 </TableHeader>
@@ -127,10 +127,10 @@ export default function DeliveryHistory({
                     <TableRow key={record.date + record.shopId}>
                       <TableCell>{formatDate(record.date)}</TableCell>
                       <TableCell>{shopInfoMap[record.shopId]?.shopName || record.shopId}</TableCell>
-                      <TableCell>{record.versionCount}</TableCell>
-                      <TableCell>{record.lastStepName}</TableCell>
+                      <TableCell className="hidden sm:table-cell">{record.versionCount}</TableCell>
+                      <TableCell className="hidden sm:table-cell">{record.lastStepName}</TableCell>
                       <TableCell>
-                        <div className="flex space-x-2">
+                        <div className="flex flex-col sm:flex-row sm:space-x-2 space-y-2 sm:space-y-0">
                           <Button
                             size="sm"
                             onClick={() => 

@@ -271,7 +271,7 @@ export default function VersionComparisonPage() {
           <CardTitle>Compare Delivery Versions</CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
+          <div className="grid grid-cols-1 sm:grid-cols-1 md:grid-cols-2 gap-6 mb-8">
             <VersionSelector
               label="Compare A"
               versions={versions}
@@ -289,12 +289,14 @@ export default function VersionComparisonPage() {
           </div>
 
           {versionA && versionB ? (
-            <DiffTable
-              diffData={diffData}
-              versionALabel={selectedVersionA?.stepType || "A"}
-              versionBLabel={selectedVersionB?.stepType || "B"}
-              isLoading={isLoadingDetails}
-            />
+            <div className="overflow-x-auto">
+              <DiffTable
+                diffData={diffData}
+                versionALabel={selectedVersionA?.stepType || "A"}
+                versionBLabel={selectedVersionB?.stepType || "B"}
+                isLoading={isLoadingDetails}
+              />
+            </div>
           ) : (
             <div className="flex justify-center items-center h-64 bg-muted/20 rounded-md">
               <p className="text-muted-foreground">

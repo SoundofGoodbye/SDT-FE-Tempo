@@ -126,7 +126,7 @@ export default function DeliveriesCalendarPage({
 
   return (
     <div className="w-full max-w-3xl mx-auto p-4">
-      <div className="flex justify-between items-center mb-6">
+      <div className="flex flex-col sm:flex-row sm:justify-between gap-4 mb-6">
         <h1 className="text-2xl font-bold">Delivery Calendar</h1>
         <div className="flex gap-2">
           <Button variant="outline" onClick={goToPreviousMonth}>
@@ -154,29 +154,32 @@ export default function DeliveriesCalendarPage({
         </div>
       ) : (
         <div className="border rounded-lg p-4 bg-background">
-          <Calendar
-            mode="single"
-            selected={undefined}
-            onSelect={(date) => date && handleDateClick(date)}
-            disabled={(date) =>
-              !highlightedDates.some(
-                (d) =>
-                  d.toISOString().split("T")[0] ===
-                  date.toISOString().split("T")[0],
-              )
-            }
-            modifiers={{
-              highlighted: highlightedDates,
-            }}
-            modifiersStyles={{
-              highlighted: {
-                fontWeight: "bold",
-                backgroundColor: "var(--primary)",
-                color: "var(--primary-foreground)",
-                borderRadius: "4px",
-              },
-            }}
-          />
+          <div className="overflow-x-auto">
+            <Calendar
+              className="w-full sm:w-auto"
+              mode="single"
+              selected={undefined}
+              onSelect={(date) => date && handleDateClick(date)}
+              disabled={(date) =>
+                !highlightedDates.some(
+                  (d) =>
+                    d.toISOString().split("T")[0] ===
+                    date.toISOString().split("T")[0],
+                )
+              }
+              modifiers={{
+                highlighted: highlightedDates,
+              }}
+              modifiersStyles={{
+                highlighted: {
+                  fontWeight: "bold",
+                  backgroundColor: "var(--primary)",
+                  color: "var(--primary-foreground)",
+                  borderRadius: "4px",
+                },
+              }}
+            />
+          </div>
         </div>
       )}
     </div>

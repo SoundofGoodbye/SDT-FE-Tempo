@@ -177,7 +177,7 @@ export default function DeliveryVersionsListPage({ shopId, date, companyId }: De
 
   if (isLoadingVersions) {
     return (
-      <div className="container mx-auto p-4">
+      <div className="px-4 py-6">
         <div className="flex justify-center items-center h-40">
           <p className="text-gray-500">Loading delivery versions...</p>
         </div>
@@ -187,7 +187,7 @@ export default function DeliveryVersionsListPage({ shopId, date, companyId }: De
 
   if (versions.length === 0) {
     return (
-      <div className="container mx-auto p-4">
+      <div className="px-4 py-6">
         <div className="flex justify-center items-center h-40">
           <p className="text-gray-500">No delivery versions found for this date</p>
         </div>
@@ -196,8 +196,8 @@ export default function DeliveryVersionsListPage({ shopId, date, companyId }: De
   }
 
   return (
-    <div className="container mx-auto p-4">
-      <div className="flex justify-between items-center mb-6">
+    <div className="px-4 py-6">
+      <div className="flex flex-col sm:flex-row sm:justify-between gap-4 mb-6">
         <h2 className="text-2xl font-bold">Delivery Versions - {date}</h2>
         <Button
           onClick={handleCompareVersions}
@@ -208,18 +208,22 @@ export default function DeliveryVersionsListPage({ shopId, date, companyId }: De
       </div>
 
       <div className="mb-6">
-        <StepTimeline
-          steps={versions}
-          selectedStepType={selectedStepType}
-          onSelectStep={handleSelectStep}
-          groupedSteps={groupedVersions}
-        />
+        <div className="flex flex-wrap gap-2 mb-4">
+          <StepTimeline
+            steps={versions}
+            selectedStepType={selectedStepType}
+            onSelectStep={handleSelectStep}
+            groupedSteps={groupedVersions}
+          />
+        </div>
       </div>
 
-      <VersionList 
-        items={productItems} 
-        isLoading={isLoadingItems} 
-      />
+      <div className="overflow-x-auto">
+        <VersionList 
+          items={productItems} 
+          isLoading={isLoadingItems} 
+        />
+      </div>
     </div>
   );
 }

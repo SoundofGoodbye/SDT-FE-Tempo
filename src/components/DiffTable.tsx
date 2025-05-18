@@ -57,7 +57,7 @@ export default function DiffTable({
             <TableHead className="w-[200px]">Product Name</TableHead>
             <TableHead className="text-right">Qty {versionALabel}</TableHead>
             <TableHead className="text-right">Qty {versionBLabel}</TableHead>
-            <TableHead className="text-right">Δ</TableHead>
+            <TableHead className="text-right hidden sm:table-cell">Δ</TableHead>
             <TableHead>Notes {versionALabel}</TableHead>
             <TableHead>Notes {versionBLabel}</TableHead>
           </TableRow>
@@ -73,7 +73,7 @@ export default function DiffTable({
               <TableCell className="font-medium">{item.name}</TableCell>
               <TableCell className="text-right">{item.qtyA ?? "-"}</TableCell>
               <TableCell className="text-right">{item.qtyB ?? "-"}</TableCell>
-              <TableCell className="text-right font-semibold">
+              <TableCell className="text-right font-semibold hidden sm:table-cell">
                 {item.delta > 0 ? `+${item.delta}` : item.delta}
               </TableCell>
               <TableCell>{item.notesA || "-"}</TableCell>
