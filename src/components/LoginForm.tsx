@@ -17,7 +17,7 @@ import { Alert, AlertDescription } from "../components/ui/alert";
 import { Loader2 } from "lucide-react";
 
 interface LoginFormProps {
-  onLoginSuccess?: () => void;
+  onLoginSuccess?: (authToken: string, companyId: number) => void;
 }
 
 const LoginForm = ({ onLoginSuccess = () => {} }: LoginFormProps) => {
@@ -60,10 +60,9 @@ const LoginForm = ({ onLoginSuccess = () => {} }: LoginFormProps) => {
       ) {
         // Base64 encode username:password for Basic Auth
         const authToken = 'Basic ' + btoa(username + ':' + password);
-        localStorage.setItem("authToken", authToken);
-        localStorage.setItem("companyId", "1");
 
-        onLoginSuccess();
+        // Pass the auth token and company ID to the parent component
+        onLoginSuccess(authToken, 1);
         router.push("/dashboard");
       } else {
         throw new Error("Invalid username or password");

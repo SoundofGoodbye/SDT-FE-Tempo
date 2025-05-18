@@ -5,7 +5,7 @@ export function useRequireAuth() {
   const router = useRouter();
   useEffect(() => {
     if (typeof window !== 'undefined' && !localStorage.getItem("authToken")) {
-      router.replace("/login");
+      router.replace("/");
     }
   }, [router]);
 }

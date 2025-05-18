@@ -13,12 +13,8 @@ import LoginForm from "@/components/LoginForm";
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 
-interface LoginFormProps {
-  onLogin: (userData: { name: string; companyId: number }) => void;
-}
-
 interface LoginFormComponentProps {
-  onLoginSuccess?: () => void;
+  onLoginSuccess?: (authToken: string, companyId: number) => void;
 }
 
 export default function Home() {
@@ -32,11 +28,10 @@ export default function Home() {
     }
   }, [router]);
 
-  const handleLogin = (userData: { name: string; companyId: number }) => {
+  const handleLogin = (authToken: string, companyId: number) => {
     // Store user data in localStorage
-    localStorage.setItem("authToken", "demo-token");
-    localStorage.setItem("userId", "1");
-    localStorage.setItem("companyId", userData.companyId.toString());
+    localStorage.setItem("authToken", authToken);
+    localStorage.setItem("companyId", companyId.toString());
 
     // Redirect to dashboard
     router.push("/dashboard");
@@ -55,8 +50,8 @@ export default function Home() {
             </CardHeader>
             <CardContent>
               <LoginForm
-                onLoginSuccess={() =>
-                  handleLogin({ name: "demo", companyId: 1 })
+                onLoginSuccess={(authToken, companyId) =>
+                  handleLogin(authToken, companyId)
                 }
               />
             </CardContent>
