@@ -26,12 +26,24 @@ const apiClient = {
   get: async <T>(endpoint: string): Promise<T> => {
     try {
       const url = `${API_BASE_URL}${endpoint.startsWith('/') ? endpoint : `/${endpoint}`}`;
-      const response = await fetch(url);
-      
+
+      // Get auth token from localStorage
+      const token = localStorage.getItem('authToken');
+      const headers: HeadersInit = {};
+
+      // Add Authorization header if token exists
+      if (token) {
+        headers.Authorization = token;
+      }
+
+      const response = await fetch(url, {
+        headers
+      });
+
       if (!response.ok) {
         throw new Error(`API request failed: ${response.statusText}`);
       }
-      
+
       return await response.json();
     } catch (error) {
       console.error(`Error fetching from ${endpoint}:`, error);
@@ -48,18 +60,28 @@ const apiClient = {
   post: async <T>(endpoint: string, data?: any): Promise<T> => {
     try {
       const url = `${API_BASE_URL}${endpoint.startsWith('/') ? endpoint : `/${endpoint}`}`;
+
+      // Get auth token from localStorage
+      const token = localStorage.getItem('authToken');
+      const headers: HeadersInit = {
+        'Content-Type': 'application/json',
+      };
+
+      // Add Authorization header if token exists
+      if (token) {
+        headers.Authorization = token;
+      }
+
       const response = await fetch(url, {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
+        headers,
         body: data ? JSON.stringify(data) : undefined,
       });
-      
+
       if (!response.ok) {
         throw new Error(`API request failed: ${response.statusText}`);
       }
-      
+
       return await response.json();
     } catch (error) {
       console.error(`Error posting to ${endpoint}:`, error);
@@ -76,18 +98,28 @@ const apiClient = {
   put: async <T>(endpoint: string, data?: any): Promise<T> => {
     try {
       const url = `${API_BASE_URL}${endpoint.startsWith('/') ? endpoint : `/${endpoint}`}`;
+
+      // Get auth token from localStorage
+      const token = localStorage.getItem('authToken');
+      const headers: HeadersInit = {
+        'Content-Type': 'application/json',
+      };
+
+      // Add Authorization header if token exists
+      if (token) {
+        headers.Authorization = token;
+      }
+
       const response = await fetch(url, {
         method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-        },
+        headers,
         body: data ? JSON.stringify(data) : undefined,
       });
-      
+
       if (!response.ok) {
         throw new Error(`API request failed: ${response.statusText}`);
       }
-      
+
       return await response.json();
     } catch (error) {
       console.error(`Error putting to ${endpoint}:`, error);
@@ -103,14 +135,25 @@ const apiClient = {
   delete: async <T>(endpoint: string): Promise<T> => {
     try {
       const url = `${API_BASE_URL}${endpoint.startsWith('/') ? endpoint : `/${endpoint}`}`;
+
+      // Get auth token from localStorage
+      const token = localStorage.getItem('authToken');
+      const headers: HeadersInit = {};
+
+      // Add Authorization header if token exists
+      if (token) {
+        headers.Authorization = token;
+      }
+
       const response = await fetch(url, {
         method: 'DELETE',
+        headers,
       });
-      
+
       if (!response.ok) {
         throw new Error(`API request failed: ${response.statusText}`);
       }
-      
+
       return await response.json();
     } catch (error) {
       console.error(`Error deleting from ${endpoint}:`, error);

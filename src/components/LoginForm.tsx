@@ -49,12 +49,18 @@ const LoginForm = ({ onLoginSuccess = () => {} }: LoginFormProps) => {
       // localStorage.setItem('userId', data.userId);
       // localStorage.setItem('companyId', data.companyId);
 
-      // Mock successful login for UI scaffolding
+      // Simulate network delay for better UX
       await new Promise((resolve) => setTimeout(resolve, 1000));
 
-      if (username === "demo" && password === "password") {
-        localStorage.setItem("authToken", "mock-token");
-        localStorage.setItem("userId", "1");
+      // Check for valid credentials
+      if (
+        (username === "admin@sdt.com" && password === "123456") ||
+        (username === "manager@sdt.com" && password === "123456") ||
+        (username === "delivery_guy@sdt.com" && password === "123456")
+      ) {
+        // Base64 encode username:password for Basic Auth
+        const authToken = 'Basic ' + btoa(username + ':' + password);
+        localStorage.setItem("authToken", authToken);
         localStorage.setItem("companyId", "1");
 
         onLoginSuccess();
@@ -125,10 +131,15 @@ const LoginForm = ({ onLoginSuccess = () => {} }: LoginFormProps) => {
             </Button>
           </form>
         </CardContent>
-        <CardFooter className="flex justify-center">
-          <p className="text-sm text-muted-foreground">
-            Demo credentials: username: demo, password: password
+        <CardFooter className="flex flex-col items-center">
+          <p className="text-sm text-muted-foreground mb-1">
+            Demo users available:
           </p>
+          <ul className="text-xs text-muted-foreground">
+            <li>admin@sdt.com / 123456</li>
+            <li>manager@sdt.com / 123456</li>
+            <li>delivery_guy@sdt.com / 123456</li>
+          </ul>
         </CardFooter>
       </Card>
     </div>
