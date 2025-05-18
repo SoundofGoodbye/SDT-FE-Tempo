@@ -3,7 +3,7 @@
  */
 
 // Base URL for all API requests
-const API_BASE_URL = 'http://localhost:8080';
+const API_BASE_URL = 'http://sdtapi-env.eba-hyjrzmcj.eu-north-1.elasticbeanstalk.com';
 
 /**
  * Generic type for API responses
