@@ -51,7 +51,7 @@ export default function DeliveriesCalendarPage({
     setIsLoading(true);
     try {
       // Using apiClient to ensure auth token is attached
-      const response = await apiClient.get(
+      const response = await apiClient.get<{ payload: DeliveryDate[] }>(
         `/company/${companyId}/deliveries/calendar?shopId=${shopId}&month=${currentMonth}`
       );
       setDeliveryDates(response.payload || []);
