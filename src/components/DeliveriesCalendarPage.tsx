@@ -12,6 +12,7 @@ import {
 } from "@/components/ui/tooltip";
 import { cn } from "@/lib/utils";
 import { Loader2 } from "lucide-react";
+import apiClient from "@/lib/api-client";
 
 type DeliveryDate = {
   date: string;
@@ -49,15 +50,11 @@ export default function DeliveriesCalendarPage({
   async function fetchDeliveryDates() {
     setIsLoading(true);
     try {
-      // Using fetch directly since we don't have access to the apiClient
-      const response = await fetch(
-        `/api/company/${companyId}/deliveries/calendar?shopId=${shopId}&month=${currentMonth}`,
+      // Using apiClient to ensure auth token is attached
+      const response = await apiClient.get(
+        `/company/${companyId}/deliveries/calendar?shopId=${shopId}&month=${currentMonth}`
       );
-      if (!response.ok) {
-        throw new Error("Failed to fetch delivery dates");
-      }
-      const data = await response.json();
-      setDeliveryDates(data);
+      setDeliveryDates(response.payload || []);
     } catch (error) {
       console.error("Error fetching delivery dates:", error);
       setDeliveryDates([]);

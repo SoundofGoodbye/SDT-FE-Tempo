@@ -1,5 +1,6 @@
 import { TempoInit } from "@/components/tempo-init";
 import { Navigation } from "@/components/Navigation";
+import { AuthWrapper } from "@/components/AuthWrapper";
 import type { Metadata } from "next";
 import { Inter } from "next/font/google";
 import Script from "next/script";
@@ -26,7 +27,9 @@ export default function RootLayout({
           <Navigation />
         </Suspense>
         <div className="pt-16">
-          {children}
+          <AuthWrapper>
+            {children}
+          </AuthWrapper>
         </div>
         <TempoInit />
       </body>

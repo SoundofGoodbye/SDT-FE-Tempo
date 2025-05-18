@@ -8,6 +8,7 @@ import { DeliveryDashboard } from "@/components/DeliveryDashboard";
 import DeliveriesCalendarPage from "@/components/DeliveriesCalendarPage";
 import DeliveryHistory from "@/components/DeliveryHistory";
 import { DashboardSearch } from "@/components/DashboardSearch";
+import { useRequireAuth } from "@/lib/useRequireAuth";
 
 export default function DashboardPage() {
   const [user, setUser] = useState<{ name: string; companyId: number } | null>(
@@ -16,24 +17,19 @@ export default function DashboardPage() {
   const router = useRouter();
   const [tabParam, setTabParam] = useState<string | null>("dashboard");
 
+  // Use the auth hook to protect this page
+  useRequireAuth();
+
   useEffect(() => {
-    // Check if user is authenticated
-    const authToken = localStorage.getItem("authToken");
+    // Set user data from localStorage
     const userId = localStorage.getItem("userId");
     const companyId = localStorage.getItem("companyId");
 
-    if (!authToken) {
-      // Redirect to login page if not authenticated
-      router.push("/");
-      return;
-    }
-
-    // Set user data
     setUser({
       name: "demo", // In a real app, you would fetch the user's name
       companyId: companyId ? parseInt(companyId) : 1,
     });
-  }, [router]);
+  }, []);
 
 
   if (!user) {

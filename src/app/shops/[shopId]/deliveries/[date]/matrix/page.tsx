@@ -3,6 +3,7 @@
 import React, { useEffect, useState } from "react";
 import { useParams } from "next/navigation";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { useRequireAuth } from "@/lib/useRequireAuth";
 import {
   Table,
   TableBody,
@@ -62,6 +63,9 @@ const stepLabels = {
 type StepName = keyof typeof stepLabels;
 
 export default function DeliveryMatrixPage() {
+  // Use the auth hook to protect this page
+  useRequireAuth();
+
   const params = useParams();
   const shopId = params.shopId as string;
   const date = params.date as string;
