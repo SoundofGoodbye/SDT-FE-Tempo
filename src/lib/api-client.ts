@@ -3,7 +3,7 @@
  */
 
 // Base URL for all API requests
-const API_BASE_URL = 'http://sdtapi-env.eba-hyjrzmcj.eu-north-1.elasticbeanstalk.com';
+const API_BASE_URL = 'https://d1g2sw6cm9x9y3.cloudfront.net';
 
 /**
  * Generic type for API responses
