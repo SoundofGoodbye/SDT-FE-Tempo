@@ -128,6 +128,7 @@ export default function DeliveryVersionsListPage({ shopId, date, companyId }: De
         unit: string;
         productListDetailsId: number;
         itemName: string;
+        price: number;
       }>>>(
         `company/${companyId}/productListItems/${productListDetailsId}/`
       );
@@ -139,6 +140,7 @@ export default function DeliveryVersionsListPage({ shopId, date, companyId }: De
         qtyOrdered: item.quantity,
         qtyActual: item.quantity, // Using the same value for qtyActual as we don't have this in the API response
         notes: `${item.unit}`, // Using unit as notes
+        price: item.price,
       }));
 
       // Set the product items

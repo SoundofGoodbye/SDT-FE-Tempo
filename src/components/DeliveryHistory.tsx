@@ -115,6 +115,7 @@ export default function DeliveryHistory({
               <Table>
                 <TableHeader>
                   <TableRow>
+                    <TableHead>Row</TableHead>
                     <TableHead>Date</TableHead>
                     <TableHead>Shop Name</TableHead>
                     <TableHead className="hidden sm:table-cell">Versions</TableHead>
@@ -123,8 +124,9 @@ export default function DeliveryHistory({
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {historyRecords.map((record) => (
+                  {historyRecords.map((record, index) => (
                     <TableRow key={record.date + record.shopId}>
+                      <TableCell>{index + 1}</TableCell>
                       <TableCell>{formatDate(record.date)}</TableCell>
                       <TableCell>{shopInfoMap[record.shopId]?.shopName || record.shopId}</TableCell>
                       <TableCell className="hidden sm:table-cell">{record.versionCount}</TableCell>

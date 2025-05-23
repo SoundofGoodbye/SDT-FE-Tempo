@@ -14,6 +14,7 @@ export type ProductItem = {
   qtyOrdered: number;
   qtyActual: number;
   notes: string;
+  price: number;
 };
 
 type VersionListProps = {
@@ -51,19 +52,23 @@ export const VersionList: React.FC<VersionListProps> = ({
       <Table>
         <TableHeader>
           <TableRow>
+            <TableHead>Row</TableHead>
             <TableHead>Product Name</TableHead>
             <TableHead className="text-right">Qty Ordered</TableHead>
             <TableHead className="text-right">Qty Actual</TableHead>
             <TableHead>Notes</TableHead>
+            <TableHead>Price</TableHead>
           </TableRow>
         </TableHeader>
         <TableBody>
-          {items.map((item) => (
+          {items.map((item, index) => (
             <TableRow key={item.id}>
+              <TableCell className="font-medium">{index + 1}</TableCell>
               <TableCell className="font-medium">{item.productName}</TableCell>
               <TableCell className="text-right">{item.qtyOrdered}</TableCell>
               <TableCell className="text-right">{item.qtyActual}</TableCell>
-              <TableCell>{item.notes}</TableCell>
+              <TableCell className="text-right">{item.notes}</TableCell>
+              <TableCell>{(item.price * item.qtyActual).toFixed(2)}</TableCell>
             </TableRow>
           ))}
         </TableBody>
