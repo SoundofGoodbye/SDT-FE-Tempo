@@ -453,6 +453,7 @@ const ProductListDetails = ({
             <Table>
               <TableHeader>
                 <TableRow>
+                  <TableHead>Row</TableHead>
                   <TableHead>Product Name</TableHead>
                   <TableHead className="w-[150px]">Initial Quantity</TableHead>
                   <TableHead className="w-[150px]">Current Quantity</TableHead>
@@ -463,7 +464,7 @@ const ProductListDetails = ({
               </TableHeader>
               <TableBody>
                 {/* First, render items that are in the current version */}
-                {items.map((item) => {
+                {items.map((item, index) => {
                   // Find matching item in initialItems
                   const initialItem = initialItems.find(
                     (i) => i.id === item.id ||
@@ -473,6 +474,7 @@ const ProductListDetails = ({
 
                   return (
                     <TableRow key={item.id}>
+                      <TableCell>{index + 1}</TableCell>
                       <TableCell>{item.itemName || item.name || "Unknown Product"}</TableCell>
                       <TableCell>
                         {initialItem ? (
