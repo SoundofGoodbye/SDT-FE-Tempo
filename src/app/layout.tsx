@@ -1,4 +1,4 @@
-import { TempoInit } from "@/components/TempoInit";
+import { TempoInit } from "@/components/tempo-init";
 import { Navigation } from "@/components/Navigation";
 import { AuthWrapper } from "@/components/AuthWrapper";
 import type { Metadata } from "next";
