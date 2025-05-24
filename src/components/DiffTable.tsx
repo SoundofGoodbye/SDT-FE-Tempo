@@ -54,6 +54,7 @@ export default function DiffTable({
       <Table>
         <TableHeader>
           <TableRow>
+            <TableHead>Row</TableHead>
             <TableHead className="w-[200px]">Product Name</TableHead>
             <TableHead className="text-right">Qty {versionALabel}</TableHead>
             <TableHead className="text-right">Qty {versionBLabel}</TableHead>
@@ -63,13 +64,14 @@ export default function DiffTable({
           </TableRow>
         </TableHeader>
         <TableBody>
-          {diffData.map((item) => (
+          {diffData.map((item, index) => (
             <TableRow
               key={item.productId}
               className={
                 item.delta !== 0 ? "bg-yellow-50 dark:bg-yellow-900/20" : ""
               }
             >
+              <TableCell className="font-medium">{index + 1}</TableCell>
               <TableCell className="font-medium">{item.name}</TableCell>
               <TableCell className="text-right">{item.qtyA ?? "-"}</TableCell>
               <TableCell className="text-right">{item.qtyB ?? "-"}</TableCell>
