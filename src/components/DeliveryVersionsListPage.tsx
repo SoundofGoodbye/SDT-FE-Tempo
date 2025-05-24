@@ -130,7 +130,7 @@ export default function DeliveryVersionsListPage({ shopId, date, companyId }: De
         itemName: string;
         price: number;
       }>>>(
-        `company/${companyId}/productListItems/${productListDetailsId}/`
+        `company/${companyId}/productListItems/${productListDetailsId}`
       );
 
       // Map the API response to the ProductItem interface
@@ -154,6 +154,7 @@ export default function DeliveryVersionsListPage({ shopId, date, companyId }: De
           });
     } catch (error) {
       console.error("Failed to fetch product items:", error);
+      // Treat all errors as "no products" cases
       setProductItems([]);
     } finally {
       setIsLoadingItems(false);

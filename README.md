@@ -52,9 +52,9 @@ The application communicates with a backend API running at `http://localhost:808
 
 ### Product List Management
 - `GET company/{companyId}/productList/calendar?month={month}` - Get dates with deliveries for a specific month
-- `GET company/{companyId}/productList/latest/?shopId={shopId}&date={date}` - Get latest product list for a shop on a specific date
+- `GET company/{companyId}/productList/latest?shopId={shopId}&date={date}` - Get latest product list for a shop on a specific date
 - `GET company/{companyId}/productList?shopId={shopId}&date={date}` - Get all versions of a product list
-- `GET company/{companyId}/productListItems/{detailsId}/` - Get items in a product list
+- `GET company/{companyId}/productListItems/{detailsId}` - Get items in a product list
 - `POST company/{companyId}/productList/{detailsId}/onboard` - Update product list during onboarding
 - `PUT company/{companyId}/productList/{detailsId}/productItems` - Add a product to a product list
 - `DELETE company/{companyId}/productList/{detailsId}/productItems/{productId}` - Remove a product from a product list

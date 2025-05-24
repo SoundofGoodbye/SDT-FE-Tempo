@@ -57,7 +57,7 @@ export function DeliveryDashboard({
     const fetchShops = async () => {
       try {
         setLoading(true);
-        const data = await apiClient.get<ApiResponse<Shop[]>>(`company/${companyId}/shop/`);
+        const data = await apiClient.get<ApiResponse<Shop[]>>(`company/${companyId}/shop`);
         // Extract shops from payload and ensure it's always an array
         const shopsData = data?.payload || [];
         setShops(Array.isArray(shopsData) ? shopsData : []);
@@ -95,20 +95,35 @@ export function DeliveryDashboard({
         // Set the dates with deliveries
         setDatesWithDeliveries(deliveryDates);
 
+        // Track if any requests succeeded
+        let anyRequestSucceeded = false;
+
         // Fetch deliveries for the selected date (for the main view)
         for (const shop of shops) {
-          const data = await apiClient.get<ApiResponse<DeliveryInfo[]>>(
-            `company/${companyId}/productList/latest/?shopId=${shop.id}&date=${formattedDate}`
-          );
-          const payloadData = data?.payload && data.payload.length > 0 ? data.payload[0] : null;
-          if (payloadData) {
-            deliveryData[shop.id] = payloadData;
+          try {
+            const data = await apiClient.get<DeliveryInfo>(
+              `company/${companyId}/productList/latest?shopId=${shop.id}&date=${formattedDate}`
+            );
+
+            if (data) {
+              deliveryData[shop.id] = data;
+              anyRequestSucceeded = true;
+            }
+          } catch (shopErr) {
+            // Ignore 404 errors (no deliveries for that day) and continue
+            console.log(`No deliveries found for shop ${shop.shopName} (ID: ${shop.id}) on ${formattedDate}`);
           }
         }
 
         setDeliveries(deliveryData);
         setLoading(false);
+
+        // Clear the error if we reached here, regardless of whether there were any deliveries.
+        // Do NOT treat "no deliveries" as an error!
+        setError(null);
       } catch (err) {
+        // This catch block will only be triggered for errors in the calendar API call
+        // or other errors outside the shop loop
         setError("Failed to fetch deliveries. Please try again later.");
         setLoading(false);
       }

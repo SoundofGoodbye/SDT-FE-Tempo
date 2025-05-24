@@ -40,7 +40,7 @@ export const VersionList: React.FC<VersionListProps> = ({
     return (
       <div className="w-full bg-white p-4 rounded-md shadow-sm">
         <div className="flex justify-center items-center h-40">
-          <p className="text-gray-500">No products found for this version</p>
+          <p className="text-gray-500">No products for this version.</p>
         </div>
       </div>
     );

@@ -3,8 +3,8 @@
  */
 
 // Base URL for all API requests
-const API_BASE_URL = 'https://d1g2sw6cm9x9y3.cloudfront.net';
-// const API_BASE_URL = 'http://localhost:8080';
+// const API_BASE_URL = 'https://d1g2sw6cm9x9y3.cloudfront.net';
+const API_BASE_URL = 'http://localhost:8080';
 
 /**
  * Generic type for API responses

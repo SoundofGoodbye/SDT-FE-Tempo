@@ -171,7 +171,7 @@ const ProductListDetails = ({
             setInitialVersionId(initialVersion.versionId);
             // Fetch the initial version details
             const initialItemsResponse = await apiClient.get<ApiResponse<ProductListItemModel[]>>(
-              `company/${companyId}/productListItems/${initialVersion.productListDetailsId}/`
+              `company/${companyId}/productListItems/${initialVersion.productListDetailsId}`
             );
             if (initialItemsResponse && initialItemsResponse.payload) {
               setInitialItems(Array.isArray(initialItemsResponse.payload) ? initialItemsResponse.payload : []);
@@ -195,7 +195,7 @@ const ProductListDetails = ({
     if (detailsId === null) return;
 
     setLoading(true);
-    apiClient.get<ApiResponse<ProductListItemModel[]>>(`company/${companyId}/productListItems/${detailsId}/`)
+    apiClient.get<ApiResponse<ProductListItemModel[]>>(`company/${companyId}/productListItems/${detailsId}`)
       .then(data => {
         // Extract items from payload
         const itemsData = data?.payload || [];

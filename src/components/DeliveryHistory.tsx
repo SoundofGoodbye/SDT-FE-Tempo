@@ -40,7 +40,7 @@ export default function DeliveryHistory({
   const fetchShopInfo = async (shopId: string): Promise<ShopInfo | null> => {
        try {
          return await apiClient.get<ShopInfo>(
-               `company/${companyId}/shop/${shopId}/`
+               `company/${companyId}/shop/${shopId}`
            );
 
          } catch (error) {
