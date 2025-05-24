@@ -356,6 +356,7 @@ export default function DeliveryMatrixPage() {
             <Table>
               <TableHeader>
                 <TableRow>
+                  <TableHead>Row</TableHead>
                   <TableHead className="w-[200px]">Product</TableHead>
                   {sortedSnapshots.map((snapshot, index) => (
                     <TableHead key={snapshot.stepName} className="text-center whitespace-nowrap">
@@ -381,12 +382,13 @@ export default function DeliveryMatrixPage() {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {filteredItemIds.map(itemId => (
+                {filteredItemIds.map((itemId, index) => (
                   <TableRow 
                     key={itemId} 
                     className="cursor-pointer hover:bg-muted/50"
                     onClick={() => handleRowClick(itemId)}
                   >
+                    <TableCell className="font-medium">{index + 1}</TableCell>
                     <TableCell className="font-medium">
                       {itemsMap.get(itemId) || `Item ${itemId}`}
                     </TableCell>
@@ -447,6 +449,7 @@ export default function DeliveryMatrixPage() {
               <Table>
                 <TableHeader>
                   <TableRow>
+                    <TableHead>Row</TableHead>
                     <TableHead>Phase</TableHead>
                     <TableHead className="text-right">Quantity</TableHead>
                     <TableHead>Note</TableHead>
@@ -459,6 +462,7 @@ export default function DeliveryMatrixPage() {
 
                     return (
                       <TableRow key={snapshot.stepName}>
+                        <TableCell className="font-medium">{index + 1}</TableCell>
                         <TableCell className="font-medium">
                           {stepLabels[snapshot.stepName] || snapshot.stepName}
                         </TableCell>

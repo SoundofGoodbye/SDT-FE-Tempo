@@ -14,14 +14,14 @@ export function AuthWrapper({ children }: AuthWrapperProps) {
 
   useEffect(() => {
     // Skip auth check for login page
-    if (pathname === "/" || pathname === "/login") {
+    if (pathname === "/") {
       return;
     }
 
     // Check if user is authenticated
     const authToken = localStorage.getItem("authToken");
     if (!authToken) {
-      router.push("/login");
+      router.push("/");
     }
   }, [router, pathname]);
 
