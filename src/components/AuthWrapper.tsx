@@ -3,6 +3,7 @@
 import { useRouter } from "next/navigation";
 import { useEffect } from "react";
 import { usePathname } from "next/navigation";
+import { isAuthenticated, logout } from "../lib/authService";
 
 interface AuthWrapperProps {
   children: React.ReactNode;
@@ -19,9 +20,8 @@ export function AuthWrapper({ children }: AuthWrapperProps) {
     }
 
     // Check if user is authenticated
-    const authToken = localStorage.getItem("authToken");
-    if (!authToken) {
-      router.push("/");
+    if (!isAuthenticated()) {
+      logout(router);
     }
   }, [router, pathname]);
 

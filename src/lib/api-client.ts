@@ -51,9 +51,9 @@ const apiClient = {
         ...options?.headers,
       };
 
-      // Add Authorization header if token exists
+      // Add Authorization header with Bearer token if token exists
       if (token) {
-        headers.Authorization = token;
+        headers.Authorization = `Bearer ${token}`;
       }
 
       const response = await fetch(url, {
@@ -116,9 +116,9 @@ const apiClient = {
         ...options?.headers,
       };
 
-      // Add Authorization header if token exists
+      // Add Authorization header with Bearer token if token exists
       if (token) {
-        headers.Authorization = token;
+        headers.Authorization = `Bearer ${token}`;
       }
 
       const response = await fetch(url, {
@@ -183,9 +183,9 @@ const apiClient = {
         ...options?.headers,
       };
 
-      // Add Authorization header if token exists
+      // Add Authorization header with Bearer token if token exists
       if (token) {
-        headers.Authorization = token;
+        headers.Authorization = `Bearer ${token}`;
       }
 
       const response = await fetch(url, {
@@ -248,9 +248,9 @@ const apiClient = {
         ...options?.headers,
       };
 
-      // Add Authorization header if token exists
+      // Add Authorization header with Bearer token if token exists
       if (token) {
-        headers.Authorization = token;
+        headers.Authorization = `Bearer ${token}`;
       }
 
       const response = await fetch(url, {
