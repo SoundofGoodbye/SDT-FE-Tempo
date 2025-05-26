@@ -32,6 +32,7 @@ import { Badge } from "./ui/badge";
 import { Alert, AlertDescription } from "./ui/alert";
 import { Spinner } from "./ui/spinner";
 import apiClient, { ApiResponse } from "@/lib/api-client";
+import {AutoComplete} from "@/components/ui/AutoComplete";
 
 interface ProductListItemModel {
   id: number;
@@ -602,13 +603,13 @@ const ProductListDetails = ({
               <label htmlFor="name" className="text-right">
                 Product Name
               </label>
-              <Input
-                id="name"
-                value={newProduct.name}
-                onChange={(e) =>
-                  setNewProduct({ ...newProduct, name: e.target.value })
-                }
-                className="col-span-3"
+              <AutoComplete
+                  apiUrl={`/company/${companyId}/productItems`}
+                  placeholder="Type to search products..."
+                  onSelect={(value) => setNewProduct({ ...newProduct, name: value })}
+                  maxResults={100}
+                  minChars={1}
+                  className="col-span-3"
               />
             </div>
             <div className="grid grid-cols-4 items-center gap-4">
