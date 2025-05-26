@@ -16,21 +16,40 @@ export interface ApiResponse<T> {
 }
 
 /**
+ * Options for API requests
+ */
+export interface RequestOptions {
+  responseType?: 'json' | 'blob' | 'text';
+  headers?: Record<string, string>;
+}
+
+/**
+ * Response type for blob requests
+ */
+export interface BlobResponse {
+  data: Blob;
+  headers: Record<string, string>;
+}
+
+/**
  * API client with methods for common HTTP operations
  */
 const apiClient = {
   /**
    * Make a GET request to the API
    * @param endpoint - The API endpoint (without the base URL)
+   * @param options - Request options including responseType
    * @returns Promise with the response data
    */
-  get: async <T>(endpoint: string): Promise<T> => {
+  get: async <T>(endpoint: string, options?: RequestOptions): Promise<T> => {
     try {
       const url = `${API_BASE_URL}${endpoint.startsWith('/') ? endpoint : `/${endpoint}`}`;
 
       // Get auth token from localStorage
       const token = localStorage.getItem('authToken');
-      const headers: HeadersInit = {};
+      const headers: HeadersInit = {
+        ...options?.headers,
+      };
 
       // Add Authorization header if token exists
       if (token) {
@@ -45,7 +64,34 @@ const apiClient = {
         throw new Error(`API request failed: ${response.statusText}`);
       }
 
-      return await response.json();
+      // Handle different response types
+      const responseType = options?.responseType || 'json';
+
+      if (responseType === 'blob') {
+        const blob = await response.blob();
+        const responseHeaders: Record<string, string> = {};
+
+        // Extract headers
+        response.headers.forEach((value, key) => {
+          responseHeaders[key] = value;
+        });
+
+        return {
+          data: blob,
+          headers: responseHeaders
+        } as T;
+      } else if (responseType === 'text') {
+        return await response.text() as T;
+      } else {
+        // Only try to parse as JSON if content-type indicates JSON
+        const contentType = response.headers.get('content-type') || '';
+        if (contentType.includes('application/json')) {
+          return await response.json();
+        } else {
+          // If not JSON, return as text
+          return await response.text() as T;
+        }
+      }
     } catch (error) {
       console.error(`Error fetching from ${endpoint}:`, error);
       throw error;
@@ -56,9 +102,10 @@ const apiClient = {
    * Make a POST request to the API
    * @param endpoint - The API endpoint (without the base URL)
    * @param data - The data to send in the request body
+   * @param options - Request options including responseType
    * @returns Promise with the response data
    */
-  post: async <T>(endpoint: string, data?: any): Promise<T> => {
+  post: async <T>(endpoint: string, data?: any, options?: RequestOptions): Promise<T> => {
     try {
       const url = `${API_BASE_URL}${endpoint.startsWith('/') ? endpoint : `/${endpoint}`}`;
 
@@ -66,6 +113,7 @@ const apiClient = {
       const token = localStorage.getItem('authToken');
       const headers: HeadersInit = {
         'Content-Type': 'application/json',
+        ...options?.headers,
       };
 
       // Add Authorization header if token exists
@@ -83,7 +131,34 @@ const apiClient = {
         throw new Error(`API request failed: ${response.statusText}`);
       }
 
-      return await response.json();
+      // Handle different response types
+      const responseType = options?.responseType || 'json';
+
+      if (responseType === 'blob') {
+        const blob = await response.blob();
+        const responseHeaders: Record<string, string> = {};
+
+        // Extract headers
+        response.headers.forEach((value, key) => {
+          responseHeaders[key] = value;
+        });
+
+        return {
+          data: blob,
+          headers: responseHeaders
+        } as T;
+      } else if (responseType === 'text') {
+        return await response.text() as T;
+      } else {
+        // Only try to parse as JSON if content-type indicates JSON
+        const contentType = response.headers.get('content-type') || '';
+        if (contentType.includes('application/json')) {
+          return await response.json();
+        } else {
+          // If not JSON, return as text
+          return await response.text() as T;
+        }
+      }
     } catch (error) {
       console.error(`Error posting to ${endpoint}:`, error);
       throw error;
@@ -94,9 +169,10 @@ const apiClient = {
    * Make a PUT request to the API
    * @param endpoint - The API endpoint (without the base URL)
    * @param data - The data to send in the request body
+   * @param options - Request options including responseType
    * @returns Promise with the response data
    */
-  put: async <T>(endpoint: string, data?: any): Promise<T> => {
+  put: async <T>(endpoint: string, data?: any, options?: RequestOptions): Promise<T> => {
     try {
       const url = `${API_BASE_URL}${endpoint.startsWith('/') ? endpoint : `/${endpoint}`}`;
 
@@ -104,6 +180,7 @@ const apiClient = {
       const token = localStorage.getItem('authToken');
       const headers: HeadersInit = {
         'Content-Type': 'application/json',
+        ...options?.headers,
       };
 
       // Add Authorization header if token exists
@@ -121,7 +198,34 @@ const apiClient = {
         throw new Error(`API request failed: ${response.statusText}`);
       }
 
-      return await response.json();
+      // Handle different response types
+      const responseType = options?.responseType || 'json';
+
+      if (responseType === 'blob') {
+        const blob = await response.blob();
+        const responseHeaders: Record<string, string> = {};
+
+        // Extract headers
+        response.headers.forEach((value, key) => {
+          responseHeaders[key] = value;
+        });
+
+        return {
+          data: blob,
+          headers: responseHeaders
+        } as T;
+      } else if (responseType === 'text') {
+        return await response.text() as T;
+      } else {
+        // Only try to parse as JSON if content-type indicates JSON
+        const contentType = response.headers.get('content-type') || '';
+        if (contentType.includes('application/json')) {
+          return await response.json();
+        } else {
+          // If not JSON, return as text
+          return await response.text() as T;
+        }
+      }
     } catch (error) {
       console.error(`Error putting to ${endpoint}:`, error);
       throw error;
@@ -131,15 +235,18 @@ const apiClient = {
   /**
    * Make a DELETE request to the API
    * @param endpoint - The API endpoint (without the base URL)
+   * @param options - Request options including responseType
    * @returns Promise with the response data
    */
-  delete: async <T>(endpoint: string): Promise<T> => {
+  delete: async <T>(endpoint: string, options?: RequestOptions): Promise<T> => {
     try {
       const url = `${API_BASE_URL}${endpoint.startsWith('/') ? endpoint : `/${endpoint}`}`;
 
       // Get auth token from localStorage
       const token = localStorage.getItem('authToken');
-      const headers: HeadersInit = {};
+      const headers: HeadersInit = {
+        ...options?.headers,
+      };
 
       // Add Authorization header if token exists
       if (token) {
@@ -155,7 +262,27 @@ const apiClient = {
         throw new Error(`API request failed: ${response.statusText}`);
       }
 
-      return await response.json();
+      // Handle different response types
+      const responseType = options?.responseType || 'json';
+
+      if (responseType === 'blob') {
+        const blob = await response.blob();
+        const responseHeaders: Record<string, string> = {};
+
+        // Extract headers
+        response.headers.forEach((value, key) => {
+          responseHeaders[key] = value;
+        });
+
+        return {
+          data: blob,
+          headers: responseHeaders
+        } as T;
+      } else if (responseType === 'text') {
+        return await response.text() as T;
+      } else {
+        return await response.json();
+      }
     } catch (error) {
       console.error(`Error deleting from ${endpoint}:`, error);
       throw error;
