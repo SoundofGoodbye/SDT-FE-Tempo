@@ -3,7 +3,7 @@
 import React, { useEffect, useState } from "react";
 import { useParams } from "next/navigation";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { useRequireAuth } from "@/lib/useRequireAuth";
+import { useRequireAuth } from "@/hooks/useRequireAuth";
 import {
   Table,
   TableBody,
@@ -19,8 +19,8 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
-import { DeliveryTabs } from "@/components/DeliveryTabs";
-import apiClient, { ApiResponse } from "@/lib/api-client";
+import { DeliveryTabs } from "@/components/feature/DeliveryTabs";
+import { apiClient, ApiResponse } from "@/lib/api/api-client";
 import {
   Drawer,
   DrawerContent,

@@ -1,9 +1,10 @@
+// src/components/ui/AuthWrapper.tsx
 "use client";
 
 import { useRouter } from "next/navigation";
 import { useEffect } from "react";
 import { usePathname } from "next/navigation";
-import { isAuthenticated, logout } from "../lib/authService";
+import { isAuthenticated, logout } from "@/lib/api/auth-service";
 
 interface AuthWrapperProps {
   children: React.ReactNode;
@@ -18,8 +19,6 @@ export function AuthWrapper({ children }: AuthWrapperProps) {
     if (pathname === "/") {
       return;
     }
-
-    // Check if user is authenticated
     if (!isAuthenticated()) {
       logout(router);
     }

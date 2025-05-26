@@ -6,16 +6,9 @@ import {
   TableHead,
   TableHeader,
   TableRow,
-} from "./ui/table";
+} from "../ui/table";
 
-export type ProductItem = {
-  id: string;
-  productName: string;
-  qtyOrdered: number;
-  qtyActual: number;
-  notes: string;
-  price: number;
-};
+import type { ProductItem } from "@/types/delivery";
 
 type VersionListProps = {
   items: ProductItem[];

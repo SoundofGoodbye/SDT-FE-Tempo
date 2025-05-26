@@ -1,74 +1,25 @@
 "use client";
 
-import type { BadgeProps } from "./ui/badge";
-import React, { useState, useEffect } from "react";
-import { Button } from "./ui/button";
+import type {BadgeProps} from "../ui/badge";
+import {Badge} from "../ui/badge";
+import React, {useEffect, useState} from "react";
+import {Button} from "../ui/button";
+import {Card, CardContent, CardFooter, CardHeader, CardTitle,} from "../ui/card";
+import {Table, TableBody, TableCell, TableHead, TableHeader, TableRow,} from "../ui/table";
+import {Input} from "../ui/input";
+import {Textarea} from "../ui/textarea";
+import {Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle,} from "../ui/dialog";
+import {Plus, Trash2} from "lucide-react";
+import {Alert, AlertDescription} from "../ui/alert";
+import {Spinner} from "../ui/spinner";
+import { apiClient, ApiResponse } from "@/lib/api/api-client";
 import {
-  Card,
-  CardHeader,
-  CardTitle,
-  CardContent,
-  CardFooter,
-} from "./ui/card";
-import {
-  Table,
-  TableHeader,
-  TableRow,
-  TableHead,
-  TableBody,
-  TableCell,
-} from "./ui/table";
-import { Input } from "./ui/input";
-import { Textarea } from "./ui/textarea";
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogFooter,
-} from "./ui/dialog";
-import { Plus, Minus, Edit, Trash2, Save, X } from "lucide-react";
-import { Badge } from "./ui/badge";
-import { Alert, AlertDescription } from "./ui/alert";
-import { Spinner } from "./ui/spinner";
-import apiClient, { ApiResponse } from "@/lib/api-client";
-
-interface ProductListItemModel {
-  id: number;
-  name?: string;
-  itemName?: string;
-  quantity: number;
-  unit?: string;
-  productListDetailsId?: number;
-  // Add any additional fields that might be in the API response
-  [key: string]: any;
-}
-type StepName = "INITIAL_REQUEST" | "ON_BOARDING" | "OFF_LOADING" | "FINAL";
-
-interface VersionModel {
-  versionId: number;
-  deliveryStepName: StepName;
-  productListDetailsId: number;
-  // Add any additional fields that might be in the API response
-  [key: string]: any;
-}
-
-interface ProductListVersionModel {
-  versionId: number;
-  deliveryStepName: StepName;
-  productListDetailsId: number;
-  timestamp?: string;
-  // Add any additional fields that might be in the API response
-  [key: string]: any;
-}
-
-interface ProductListDetailsProps {
-  shopId?: number;
-  shopName?: string;
-  productListId?: number;
-  date?: string;
-  companyId?: number;
-}
+  ProductListDetailsProps,
+  ProductListItemModel,
+  ProductListVersionModel,
+  StepName,
+  VersionModel
+} from "@/types/delivery";
 
 const ProductListDetails = ({
   shopId = 1,

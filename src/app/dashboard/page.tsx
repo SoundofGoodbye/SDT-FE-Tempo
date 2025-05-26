@@ -3,12 +3,11 @@
 import { useEffect, useState, Suspense } from "react";
 import { useRouter } from "next/navigation";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Button } from "@/components/ui/button";
-import { DeliveryDashboard } from "@/components/DeliveryDashboard";
-import DeliveriesCalendarPage from "@/components/DeliveriesCalendarPage";
-import DeliveryHistory from "@/components/DeliveryHistory";
-import { DashboardSearch } from "@/components/DashboardSearch";
-import { useRequireAuth } from "@/lib/useRequireAuth";
+import { DeliveryDashboard } from "@/components/feature/DeliveryDashboard";
+import DeliveriesCalendarPage from "@/components/feature/DeliveriesCalendarPage";
+import DeliveryHistory from "@/components/feature/DeliveryHistory";
+import { DashboardSearch } from "@/components/ui/DashboardSearch";
+import { useRequireAuth } from "@/hooks/useRequireAuth";
 
 export default function DashboardPage() {
   const [user, setUser] = useState<{ name: string; companyId: number } | null>(

@@ -1,9 +1,9 @@
 "use client";
 
-import DeliveryVersionsListPage from "@/components/DeliveryVersionsListPage";
-import { DeliveryTabs } from "@/components/DeliveryTabs";
+import DeliveryVersionsListPage from "@/components/feature/DeliveryVersionsListPage";
+import { DeliveryTabs } from "@/components/feature/DeliveryTabs";
 import { useParams } from "next/navigation";
-import { useRequireAuth } from "@/lib/useRequireAuth";
+import { useRequireAuth } from "@/hooks/useRequireAuth";
 
 export default function VersionsPage() {
   // Use the auth hook to protect this page
