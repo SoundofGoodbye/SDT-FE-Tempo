@@ -50,3 +50,33 @@ export const isAuthenticated = (): boolean => {
   
   return !isTokenExpired(token);
 };
+
+/**
+ * Get the user's role from the JWT token in localStorage
+ * @returns {string | null} The user's role (e.g., 'ADMIN', 'MANAGER'), or null if not found
+ */
+export const getUserRole = (): string | null => {
+  if (typeof window === 'undefined') return null;
+  const token = localStorage.getItem('authToken');
+  if (!token) return null;
+  try {
+    const base64Url = token.split('.')[1];
+    const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
+    const payload = JSON.parse(window.atob(base64));
+    // The role may be in payload.roleModel.name or payload.role or similar
+    if (payload.roleModel && payload.roleModel.name) {
+      return payload.roleModel.name;
+    }
+    if (payload.role) {
+      return payload.role;
+    }
+    // Sometimes roles are in an array
+    if (payload.roles && Array.isArray(payload.roles) && payload.roles.length > 0) {
+      if (typeof payload.roles[0] === 'string') return payload.roles[0];
+      if (payload.roles[0].name) return payload.roles[0].name;
+    }
+    return null;
+  } catch (error) {
+    return null;
+  }
+};
