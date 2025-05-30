@@ -24,7 +24,7 @@ const apiClient = {
    * @param endpoint - The API endpoint (without the base URL)
    * @returns Promise with the response data
    */
-  get: async <T>(endpoint: string): Promise<T> => {
+  get: async <T>(endpoint: string): Promise<T | null> => {
     try {
       const url = `${API_BASE_URL}${endpoint.startsWith('/') ? endpoint : `/${endpoint}`}`;
 
@@ -32,14 +32,19 @@ const apiClient = {
       const token = localStorage.getItem('authToken');
       const headers: HeadersInit = {};
 
-      // Add Authorization header if token exists
+      // Add Authorization header with Bearer token if token exists
       if (token) {
-        headers.Authorization = token;
+        headers.Authorization = `Bearer ${token}`;
       }
 
       const response = await fetch(url, {
         headers
       });
+
+      if (response.status === 404) {
+        // Не логвай като грешка, просто върни null
+        return null;
+      }
 
       if (!response.ok) {
         throw new Error(`API request failed: ${response.statusText}`);
@@ -47,6 +52,7 @@ const apiClient = {
 
       return await response.json();
     } catch (error) {
+      // Логвай само неочаквани грешки
       console.error(`Error fetching from ${endpoint}:`, error);
       throw error;
     }
@@ -68,9 +74,9 @@ const apiClient = {
         'Content-Type': 'application/json',
       };
 
-      // Add Authorization header if token exists
+      // Add Authorization header with Bearer token if token exists
       if (token) {
-        headers.Authorization = token;
+        headers.Authorization = `Bearer ${token}`;
       }
 
       const response = await fetch(url, {
@@ -106,9 +112,9 @@ const apiClient = {
         'Content-Type': 'application/json',
       };
 
-      // Add Authorization header if token exists
+      // Add Authorization header with Bearer token if token exists
       if (token) {
-        headers.Authorization = token;
+        headers.Authorization = `Bearer ${token}`;
       }
 
       const response = await fetch(url, {
@@ -141,9 +147,9 @@ const apiClient = {
       const token = localStorage.getItem('authToken');
       const headers: HeadersInit = {};
 
-      // Add Authorization header if token exists
+      // Add Authorization header with Bearer token if token exists
       if (token) {
-        headers.Authorization = token;
+        headers.Authorization = `Bearer ${token}`;
       }
 
       const response = await fetch(url, {

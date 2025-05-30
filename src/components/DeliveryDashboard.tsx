@@ -13,6 +13,7 @@ import { format } from "date-fns";
 import { CalendarIcon, ChevronRight } from "lucide-react";
 import ProductListDetails from "./ProductListDetails";
 import apiClient, { ApiResponse } from "@/lib/api-client";
+import { getUserRole } from '@/lib/authService';
 
 interface Shop {
   id: number;
@@ -51,6 +52,11 @@ export function DeliveryDashboard({
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
   const [datesWithDeliveries, setDatesWithDeliveries] = useState<Date[]>([]);
+  const [role, setRole] = useState<string | null>(null);
+
+  useEffect(() => {
+    setRole(getUserRole());
+  }, []);
 
   // Fetch shops for the company
   useEffect(() => {

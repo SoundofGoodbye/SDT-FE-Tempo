@@ -33,40 +33,29 @@ const LoginForm = ({ onLoginSuccess = () => {} }: LoginFormProps) => {
     setIsLoading(true);
 
     try {
-      // Mock authentication - replace with actual API call
-      // const response = await fetch('http://localhost:8080/auth/login', {
-      //   method: 'POST',
-      //   headers: { 'Content-Type': 'application/json' },
-      //   body: JSON.stringify({ username, password }),
-      // });
+      // Real authentication with API call
+      const response = await fetch('http://localhost:8080/auth/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: username, password }),
+      });
 
-      // if (!response.ok) {
-      //   throw new Error('Authentication failed');
-      // }
-
-      // const data = await response.json();
-      // localStorage.setItem('authToken', data.token);
-      // localStorage.setItem('userId', data.userId);
-      // localStorage.setItem('companyId', data.companyId);
-
-      // Simulate network delay for better UX
-      await new Promise((resolve) => setTimeout(resolve, 1000));
-
-      // Check for valid credentials
-      if (
-        (username === "admin@sdt.com" && password === "123456") ||
-        (username === "manager@sdt.com" && password === "123456") ||
-        (username === "delivery_guy@sdt.com" && password === "123456")
-      ) {
-        // Base64 encode username:password for Basic Auth
-        const authToken = 'Basic ' + btoa(username + ':' + password);
-
-        // Pass the auth token and company ID to the parent component
-        onLoginSuccess(authToken, 1);
-        router.push("/dashboard");
-      } else {
-        throw new Error("Invalid username or password");
+      if (!response.ok) {
+        throw new Error('Authentication failed');
       }
+
+      const data = await response.json();
+
+      // Store JWT token in localStorage
+      localStorage.setItem('authToken', data.accessToken);
+
+      // Store additional user info if available
+      if (data.userId) localStorage.setItem('userId', data.userId);
+      if (data.companyId) localStorage.setItem('companyId', data.companyId.toString());
+
+      // Pass the auth token and company ID to the parent component
+      onLoginSuccess(data.accessToken, data.companyId || 1);
+      router.push("/dashboard");
     } catch (err) {
       setError(
         err instanceof Error ? err.message : "Login failed. Please try again.",
