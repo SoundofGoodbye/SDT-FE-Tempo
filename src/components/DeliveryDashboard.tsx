@@ -12,19 +12,25 @@ import {
 import { format } from "date-fns";
 import { CalendarIcon, ChevronRight } from "lucide-react";
 import ProductListDetails from "./ProductListDetails";
+import apiClient, { ApiResponse } from "@/lib/api-client";
 
 interface Shop {
   id: number;
-  name: string;
-  address: string;
+  shopName: string;
+  locationId: number;
+  companyId: number;
 }
 
 interface DeliveryInfo {
   id: number;
+  productListId: number;
+  productListIdNumber: string;
+  companyId: number;
+  versionId: number;
   shopId: number;
   date: string;
-  status: "pending" | "in_progress" | "completed";
-  productCount: number;
+  status?: "pending" | "in_progress" | "completed";
+  productCount?: number;
 }
 
 interface DeliveryDashboardProps {
@@ -44,25 +50,17 @@ export function DeliveryDashboard({
   const [selectedShop, setSelectedShop] = useState<Shop | null>(null);
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
+  const [datesWithDeliveries, setDatesWithDeliveries] = useState<Date[]>([]);
 
   // Fetch shops for the company
   useEffect(() => {
     const fetchShops = async () => {
       try {
         setLoading(true);
-        // In a real implementation, this would be an actual API call
-        // const response = await fetch(`http://localhost:8080/company/${companyId}/shop/`);
-        // const data = await response.json();
-
-        // Mock data for UI scaffolding
-        const mockShops: Shop[] = [
-          { id: 1, name: "Downtown Grocery", address: "123 Main St" },
-          { id: 2, name: "Westside Market", address: "456 West Ave" },
-          { id: 3, name: "Northside Deli", address: "789 North Blvd" },
-          { id: 4, name: "Eastside Bakery", address: "321 East Rd" },
-        ];
-
-        setShops(mockShops);
+        const data = await apiClient.get<ApiResponse<Shop[]>>(`company/${companyId}/shop`);
+        // Extract shops from payload and ensure it's always an array
+        const shopsData = data?.payload || [];
+        setShops(Array.isArray(shopsData) ? shopsData : []);
         setLoading(false);
       } catch (err) {
         setError("Failed to fetch shops. Please try again later.");
@@ -73,59 +71,66 @@ export function DeliveryDashboard({
     fetchShops();
   }, [companyId]);
 
-  // Fetch deliveries for the selected date
+  // Fetch all deliveries for the month and mark dates with deliveries
   useEffect(() => {
-    const fetchDeliveries = async () => {
+    const fetchMonthDeliveries = async () => {
       try {
         setLoading(true);
+
+        // Fetch deliveries for each shop for the selected date
         const formattedDate = format(selectedDate, "yyyy-MM-dd");
+        const deliveryData: Record<number, DeliveryInfo> = {};
 
-        // In a real implementation, we would fetch deliveries for each shop
-        // const deliveryData = {};
-        // for (const shop of shops) {
-        //   const response = await fetch(
-        //     `http://localhost:8080/company/${companyId}/productList/latest/?shopId=${shop.id}&date=${formattedDate}`
-        //   );
-        //   const data = await response.json();
-        //   deliveryData[shop.id] = data;
-        // }
+        // Format the month for the API call (YYYY-MM format)
+        const formattedMonth = format(selectedDate, "yyyy-MM");
 
-        // Mock data for UI scaffolding
-        const mockDeliveries: Record<number, DeliveryInfo> = {
-          1: {
-            id: 101,
-            shopId: 1,
-            date: formattedDate,
-            status: "pending",
-            productCount: 15,
-          },
-          2: {
-            id: 102,
-            shopId: 2,
-            date: formattedDate,
-            status: "in_progress",
-            productCount: 8,
-          },
-          3: {
-            id: 103,
-            shopId: 3,
-            date: formattedDate,
-            status: "completed",
-            productCount: 12,
-          },
-          // Shop 4 has no delivery for this date
-        };
+        // Fetch delivery dates for the month from the API
+        const calendarData = await apiClient.get<ApiResponse<string[]>>(
+          `company/${companyId}/productList/calendar?&month=${formattedMonth}`
+        );
 
-        setDeliveries(mockDeliveries);
+        // Parse the date strings from the API response and convert to Date objects
+        const deliveryDates = calendarData?.payload?.map(dateStr => new Date(dateStr)) || [];
+
+        // Set the dates with deliveries
+        setDatesWithDeliveries(deliveryDates);
+
+        // Track if any requests succeeded
+        let anyRequestSucceeded = false;
+
+        // Fetch deliveries for the selected date (for the main view)
+        for (const shop of shops) {
+          try {
+            const data = await apiClient.get<DeliveryInfo>(
+              `company/${companyId}/productList/latest?shopId=${shop.id}&date=${formattedDate}`
+            );
+
+            if (data) {
+              deliveryData[shop.id] = data;
+              anyRequestSucceeded = true;
+            }
+          } catch (shopErr) {
+            // Ignore 404 errors (no deliveries for that day) and continue
+            console.log(`No deliveries found for shop ${shop.shopName} (ID: ${shop.id}) on ${formattedDate}`);
+          }
+        }
+
+        setDeliveries(deliveryData);
         setLoading(false);
+
+        // Clear the error if we reached here, regardless of whether there were any deliveries.
+        // Do NOT treat "no deliveries" as an error!
+        setError(null);
       } catch (err) {
+        // This catch block will only be triggered for errors in the calendar API call
+        // or other errors outside the shop loop
         setError("Failed to fetch deliveries. Please try again later.");
         setLoading(false);
       }
     };
 
     if (shops.length > 0) {
-      fetchDeliveries();
+      fetchMonthDeliveries();
     }
   }, [companyId, selectedDate, shops]);
 
@@ -162,10 +167,10 @@ export function DeliveryDashboard({
         </Button>
         <ProductListDetails
           companyId={companyId}
-          shop={selectedShop}
-          productListId={deliveries[selectedShop.id]?.id || 0}
+          shopId={selectedShop.id}
+          shopName={selectedShop.shopName}
+          productListId={deliveries[selectedShop.id]?.productListId || 0}
           date={format(selectedDate, "yyyy-MM-dd")}
-          status={deliveries[selectedShop.id]?.status || "pending"}
         />
       </div>
     );
@@ -181,7 +186,7 @@ export function DeliveryDashboard({
           </p>
         </div>
 
-        <div className="flex items-center justify-between">
+        <div className="flex flex-col sm:flex-row sm:justify-between gap-4">
           <h2 className="text-xl font-semibold">
             Deliveries for {format(selectedDate, "MMMM d, yyyy")}
           </h2>
@@ -193,12 +198,19 @@ export function DeliveryDashboard({
               </Button>
             </PopoverTrigger>
             <PopoverContent className="w-auto p-0" align="end">
-              <Calendar
-                mode="single"
-                selected={selectedDate}
-                onSelect={(date) => date && setSelectedDate(date)}
-                initialFocus
-              />
+              <div className="overflow-x-auto">
+                <Calendar
+                  className="w-full sm:w-auto"
+                  mode="single"
+                  selected={selectedDate}
+                  onSelect={(date) => date && setSelectedDate(date)}
+                  initialFocus
+                  modifiers={{ hasDelivery: datesWithDeliveries }}
+                  modifiersClassNames={{
+                    hasDelivery: "bg-green-100 text-green-800 font-bold"
+                  }}
+                />
+              </div>
             </PopoverContent>
           </Popover>
         </div>
@@ -212,56 +224,62 @@ export function DeliveryDashboard({
             {error}
           </div>
         ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {shops.map((shop) => {
-              const delivery = deliveries[shop.id];
-              const hasDelivery = !!delivery;
+          <div className="grid grid-cols-1 sm:grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {Array.isArray(shops) && 
+              // Sort shops: those with deliveries first, then those without
+              [...shops].sort((a, b) => {
+                const hasDeliveryA = !!deliveries[a.id];
+                const hasDeliveryB = !!deliveries[b.id];
+                if (hasDeliveryA && !hasDeliveryB) return -1;
+                if (!hasDeliveryA && hasDeliveryB) return 1;
+                return 0;
+              }).map((shop) => {
+                const delivery = deliveries[shop.id];
+                const hasDelivery = !!delivery;
 
-              return (
-                <Card key={shop.id} className="overflow-hidden">
-                  <CardHeader className="pb-2">
-                    <CardTitle>{shop.name}</CardTitle>
-                    <p className="text-sm text-muted-foreground">
-                      {shop.address}
-                    </p>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="flex flex-col space-y-4">
-                      {hasDelivery ? (
-                        <>
-                          <div className="flex justify-between items-center">
-                            <span className="text-sm">Products:</span>
-                            <span className="font-medium">
-                              {delivery.productCount}
-                            </span>
-                          </div>
-                          <div className="flex justify-between items-center">
-                            <span className="text-sm">Status:</span>
-                            <span
-                              className={`text-xs px-2 py-1 rounded-full font-medium ${getStatusColor(delivery.status)}`}
+                return (
+                  <Card key={shop.id} className="overflow-hidden">
+                    <CardHeader className="pb-2">
+                      <CardTitle>{shop.shopName}</CardTitle>
+                      <p className="text-sm text-muted-foreground">
+                        Location ID: {shop.locationId}
+                      </p>
+                    </CardHeader>
+                    <CardContent>
+                      <div className="flex flex-col space-y-4">
+                        {hasDelivery ? (
+                          <>
+                            <div className="flex flex-col sm:flex-row sm:justify-between gap-2">
+                              <span className="text-sm">Products:</span>
+                              <span className="font-medium">
+                                {delivery.productCount}
+                              </span>
+                            </div>
+                            <div className="flex flex-col sm:flex-row sm:justify-between gap-2">
+                              <span className="text-sm">Status:</span>
+                              {/*<span*/}
+                              {/*  className={`text-xs px-2 py-1 rounded-full font-medium ${getStatusColor(delivery.status)}`}*/}
+                              {/*>*/}
+                              {/*  {delivery.status.replace("_", " ").toUpperCase()}*/}
+                              {/*</span>*/}
+                            </div>
+                            <Button
+                              onClick={() => handleShopSelect(shop)}
+                              className="w-full mt-2 flex items-center justify-between"
+                              variant="default"
                             >
-                              {delivery.status.replace("_", " ").toUpperCase()}
-                            </span>
-                          </div>
-                        </>
-                      ) : (
-                        <p className="text-sm text-muted-foreground italic">
-                          No delivery scheduled for this date
-                        </p>
-                      )}
-                      <Button
-                        onClick={() => handleShopSelect(shop)}
-                        className="w-full mt-2 flex items-center justify-between"
-                        variant={hasDelivery ? "default" : "outline"}
-                      >
-                        {hasDelivery ? "View Details" : "Create Delivery"}
-                        <ChevronRight className="h-4 w-4" />
-                      </Button>
-                    </div>
-                  </CardContent>
-                </Card>
-              );
-            })}
+                              View Details
+                              <ChevronRight className="h-4 w-4" />
+                            </Button>
+                          </>
+                        ) : (
+                          <></>
+                        )}
+                      </div>
+                    </CardContent>
+                  </Card>
+                );
+              })}
           </div>
         )}
       </div>

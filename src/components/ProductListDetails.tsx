@@ -1,5 +1,6 @@
 "use client";
 
+import type { BadgeProps } from "./ui/badge";
 import React, { useState, useEffect } from "react";
 import { Button } from "./ui/button";
 import {
@@ -18,6 +19,7 @@ import {
   TableCell,
 } from "./ui/table";
 import { Input } from "./ui/input";
+import { Textarea } from "./ui/textarea";
 import {
   Dialog,
   DialogContent,
@@ -28,11 +30,36 @@ import {
 import { Plus, Minus, Edit, Trash2, Save, X } from "lucide-react";
 import { Badge } from "./ui/badge";
 import { Alert, AlertDescription } from "./ui/alert";
+import { Spinner } from "./ui/spinner";
+import apiClient, { ApiResponse } from "@/lib/api-client";
 
-interface Product {
+interface ProductListItemModel {
   id: number;
-  name: string;
+  name?: string;
+  itemName?: string;
   quantity: number;
+  unit?: string;
+  productListDetailsId?: number;
+  // Add any additional fields that might be in the API response
+  [key: string]: any;
+}
+type StepName = "INITIAL_REQUEST" | "ON_BOARDING" | "OFF_LOADING" | "FINAL";
+
+interface VersionModel {
+  versionId: number;
+  deliveryStepName: StepName;
+  productListDetailsId: number;
+  // Add any additional fields that might be in the API response
+  [key: string]: any;
+}
+
+interface ProductListVersionModel {
+  versionId: number;
+  deliveryStepName: StepName;
+  productListDetailsId: number;
+  timestamp?: string;
+  // Add any additional fields that might be in the API response
+  [key: string]: any;
 }
 
 interface ProductListDetailsProps {
@@ -46,130 +73,251 @@ interface ProductListDetailsProps {
 const ProductListDetails = ({
   shopId = 1,
   shopName = "Sample Shop",
-  productListId = 4,
+  productListId = 0,
   date = "2023-05-15",
   companyId = 1,
 }: ProductListDetailsProps) => {
-  const [products, setProducts] = useState<Product[]>([
-    { id: 1, name: "Milk", quantity: 10 },
-    { id: 2, name: "Bread", quantity: 20 },
-    { id: 3, name: "Eggs", quantity: 30 },
-    { id: 4, name: "Cheese", quantity: 5 },
-    { id: 5, name: "Yogurt", quantity: 15 },
-  ]);
-  const [deliveryStatus, setDeliveryStatus] = useState<
-    "not_started" | "in_progress" | "completed"
-  >("not_started");
-  const [editingProduct, setEditingProduct] = useState<Product | null>(null);
-  const [newQuantity, setNewQuantity] = useState<number>(0);
+  // We'll determine the productListDetailsId from the API
+  const [items, setItems] = useState<ProductListItemModel[]>([]);
+  const [detailsId, setDetailsId] = useState<number | null>(null);
+  const [editing, setEditing] = useState(false);
+  const [overrides, setOverrides] = useState<Record<number, number>>({});
+  const [description, setDescription] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  // State for initial version
+  const [initialItems, setInitialItems] = useState<ProductListItemModel[]>([]);
+  const [initialVersionId, setInitialVersionId] = useState<number | null>(null);
+  const [loadingInitial, setLoadingInitial] = useState(false);
+
+  // Add state for versions and currentStepName
+  const [versions, setVersions] = useState<ProductListVersionModel[]>([]);
+  const [currentStepName, setCurrentStepName] = useState<StepName>("INITIAL_REQUEST");
+
+  // Define checkpoint steps in order
+  const checkpointOrder: StepName[] = [
+    "INITIAL_REQUEST","ON_BOARDING","OFF_LOADING","FINAL"
+  ];
+
+  // Define button labels for each step based on editing state
+  const buttonLabelMap = {
+    INITIAL_REQUEST: {
+      start: "Start Onboarding",
+      complete: "Complete Onboarding"
+    },
+    ON_BOARDING: {
+      start: "Start Offloading",
+      complete: "Complete Offloading"
+    },
+    OFF_LOADING: {
+      start: "Finish Delivery",
+      complete: "Finalize Delivery"
+    },
+    FINAL: {
+      start: "",
+      complete: ""
+    }
+  } as const;
+
+  // Get the current index in the checkpoint order
+  const currentIndex = checkpointOrder.indexOf(currentStepName);
+
+  // Get the button label for the current step based on editing state
+  const buttonLabel = editing
+    ? (buttonLabelMap[currentStepName]?.complete || "Proceed")
+    : (buttonLabelMap[currentStepName]?.start || "Proceed");
+
+  // Keep existing state for backward compatibility
   const [isAddProductDialogOpen, setIsAddProductDialogOpen] = useState(false);
   const [newProduct, setNewProduct] = useState<{
     name: string;
     quantity: number;
   }>({ name: "", quantity: 0 });
-  const [error, setError] = useState<string | null>(null);
-  const [successMessage, setSuccessMessage] = useState<string | null>(null);
 
-  // Simulate fetching product list details
+  // No longer needed as we'll determine detailsId from the API
+
+  // Fetch all versions and identify the initial version and current version
   useEffect(() => {
-    // In a real app, this would be an API call
-    // fetch(`http://localhost:8080/company/${companyId}/productListItems/${productListId}/`)
-    //   .then(response => response.json())
-    //   .then(data => setProducts(data))
-    //   .catch(error => setError("Failed to load product list"));
+    const fetchVersions = async () => {
+      try {
+        setLoadingInitial(true);
+        setLoading(true);
+        const response = await apiClient.get<ApiResponse<VersionModel[]>>(
+          `company/${companyId}/productList?shopId=${shopId}&date=${date}`
+        );
 
-    // Using mock data for now
-    console.log(`Fetching product list ${productListId} for shop ${shopId}`);
-  }, [companyId, productListId, shopId]);
+        if (response && response.payload && Array.isArray(response.payload)) {
+          // Find the initial version (with step type "INITIAL_REQUEST")
+          const initialVersion = response.payload.find(
+            (version) => version.deliveryStepName === "INITIAL_REQUEST"
+          );
 
-  const handleStartDelivery = () => {
-    // In a real app, this would be an API call to create a new version
-    // fetch(`http://localhost:8080/company/${companyId}/productList/${productListId}/startDelivery`, {
-    //   method: 'POST'
-    // })
-    //   .then(response => response.json())
-    //   .then(data => {
-    //     setDeliveryStatus("in_progress");
-    //     setSuccessMessage("Delivery started successfully");
-    //   })
-    //   .catch(error => setError("Failed to start delivery"));
+          // Find the latest version to use as the current version
+          const latestVersion = response.payload[response.payload.length - 1];
 
-    // Using mock response for now
-    setDeliveryStatus("in_progress");
-    setSuccessMessage("Delivery started successfully");
-    setTimeout(() => setSuccessMessage(null), 3000);
+          // Set the detailsId from the latest version
+          if (latestVersion) {
+            setDetailsId(latestVersion.productListDetailsId);
+
+            // Find the version with matching productListDetailsId to set currentStepName
+            const current = response.payload.find(v =>
+              v.productListDetailsId === latestVersion.productListDetailsId
+            ) || latestVersion;
+            setCurrentStepName(current.deliveryStepName);
+          }
+
+          if (initialVersion) {
+            setInitialVersionId(initialVersion.versionId);
+            // Fetch the initial version details
+            const initialItemsResponse = await apiClient.get<ApiResponse<ProductListItemModel[]>>(
+              `company/${companyId}/productListItems/${initialVersion.productListDetailsId}`
+            );
+            if (initialItemsResponse && initialItemsResponse.payload) {
+              setInitialItems(Array.isArray(initialItemsResponse.payload) ? initialItemsResponse.payload : []);
+            }
+          }
+        }
+      } catch (error) {
+        console.error("Failed to fetch versions:", error);
+        setError("Failed to fetch versions");
+      } finally {
+        setLoadingInitial(false);
+        setLoading(false);
+      }
+    };
+
+    fetchVersions();
+  }, [companyId, shopId, date]);
+
+  // Fetch product list details only when detailsId is available
+  useEffect(() => {
+    if (detailsId === null) return;
+
+    setLoading(true);
+    apiClient.get<ApiResponse<ProductListItemModel[]>>(`company/${companyId}/productListItems/${detailsId}`)
+      .then(data => {
+        // Extract items from payload
+        const itemsData = data?.payload || [];
+        setItems(Array.isArray(itemsData) ? itemsData : []);
+        // Clear overrides when loading new items
+        setOverrides({});
+        setLoading(false);
+
+        // After loading items, fetch versions data
+        return apiClient.get<ApiResponse<ProductListVersionModel[]>>(`company/${companyId}/productList?shopId=${shopId}&date=${date}`);
+      })
+      .then(data => {
+        if (data && data.payload) {
+          const versionsData = Array.isArray(data.payload) ? data.payload : [];
+          setVersions(versionsData);
+
+          // Derive currentStepName from the last element's deliveryStepName
+          // or find the version whose productListDetailsId === detailsId
+          if (versionsData.length > 0) {
+            const currentVersion = versionsData.find(v => v.productListDetailsId === detailsId) || versionsData[versionsData.length - 1];
+            setCurrentStepName(currentVersion.deliveryStepName);
+          }
+        }
+      })
+      .catch(error => {
+        setError("Failed to load product list or versions");
+        setLoading(false);
+      });
+  }, [companyId, detailsId]);
+
+  const handleStartOnboarding = () => {
+    setEditing(true);
   };
 
-  const handleCompleteDelivery = () => {
-    // In a real app, this would be an API call
-    // fetch(`http://localhost:8080/company/${companyId}/productList/${productListId}/completeDelivery`, {
-    //   method: 'POST'
-    // })
-    //   .then(response => response.json())
-    //   .then(data => {
-    //     setDeliveryStatus("completed");
-    //     setSuccessMessage("Delivery completed successfully");
-    //   })
-    //   .catch(error => setError("Failed to complete delivery"));
+  // We no longer need the buildStepsArray function since we're rendering the steps directly
 
-    // Using mock response for now
-    setDeliveryStatus("completed");
-    setSuccessMessage("Delivery completed successfully");
-    setTimeout(() => setSuccessMessage(null), 3000);
-  };
+  const handleAdvanceStep = async () => {
+    setLoading(true);
+    try {
+      const body = {
+        description,
+        itemUpdates: Object.entries(overrides)
+          .map(([id, qty]) => ({ id: +id, quantity: qty }))
+      };
 
-  const handleEditQuantity = (product: Product) => {
-    setEditingProduct(product);
-    setNewQuantity(product.quantity);
-  };
-
-  const handleSaveQuantity = () => {
-    if (editingProduct) {
-      // In a real app, this would be an API call
-      // fetch(`http://localhost:8080/company/${companyId}/productListItems/${productListId}`, {
-      //   method: 'POST',
-      //   headers: { 'Content-Type': 'application/json' },
-      //   body: JSON.stringify({ ...editingProduct, quantity: newQuantity })
-      // })
-      //   .then(response => response.json())
-      //   .then(data => {
-      //     setProducts(products.map(p => p.id === editingProduct.id ? { ...p, quantity: newQuantity } : p));
-      //     setEditingProduct(null);
-      //     setSuccessMessage("Product quantity updated");
-      //   })
-      //   .catch(error => setError("Failed to update product quantity"));
-
-      // Using mock response for now
-      setProducts(
-        products.map((p) =>
-          p.id === editingProduct.id ? { ...p, quantity: newQuantity } : p,
-        ),
+      // Use the same advance endpoint for all steps
+      const resp = await apiClient.post<ApiResponse<ProductListItemModel[]>>(
+          `/company/${companyId}/productList/${detailsId}/onboard`,
+          body
       );
-      setEditingProduct(null);
-      setSuccessMessage("Product quantity updated");
-      setTimeout(() => setSuccessMessage(null), 3000);
+
+      // resp.payload is the new list of items
+      setItems(resp.payload);
+
+      // Capture the newly returned productListDetailsId in a local variable
+      const newDetailsId = resp.payload && resp.payload.length > 0
+        ? resp.payload[0].productListDetailsId
+        : null;
+
+      // Update detailsId state if we have a new ID
+      if (newDetailsId) {
+        setDetailsId(newDetailsId);
+      }
+
+      // Fetch updated versions to get the new currentStepName
+      const versionsResp = await apiClient.get<ApiResponse<ProductListVersionModel[]>>(
+        `company/${companyId}/productList?shopId=${shopId}&date=${date}`
+      );
+
+      if (versionsResp && versionsResp.payload) {
+        const versionsData = Array.isArray(versionsResp.payload) ? versionsResp.payload : [];
+        setVersions(versionsData);
+
+        // Update currentStepName using the captured newDetailsId
+        if (versionsData.length > 0 && newDetailsId) {
+          const currentVersion = versionsData.find(v => v.productListDetailsId === newDetailsId) ||
+                                versionsData[versionsData.length - 1];
+          setCurrentStepName(currentVersion.deliveryStepName);
+        }
+      }
+
+      // reset overrides & description
+      setOverrides({});
+      setDescription("");
+      setEditing(false);
+    } catch (e: any) {
+      setError(e.message || "Failed to advance step");
+    } finally {
+      setLoading(false);
     }
   };
 
-  const handleRemoveProduct = (productId: number) => {
-    // In a real app, this would be an API call
-    // fetch(`http://localhost:8080/company/${companyId}/productList/${productListId}/productItems/${productId}`, {
-    //   method: 'DELETE'
-    // })
-    //   .then(response => {
-    //     if (response.ok) {
-    //       setProducts(products.filter(p => p.id !== productId));
-    //       setSuccessMessage("Product removed successfully");
-    //     } else {
-    //       setError("Failed to remove product");
-    //     }
-    //   })
-    //   .catch(error => setError("Failed to remove product"));
+  // We no longer need these functions as we're using overrides state
+  // and handleCompleteOnboarding for saving changes
 
-    // Using mock response for now
-    setProducts(products.filter((p) => p.id !== productId));
-    setSuccessMessage("Product removed successfully");
-    setTimeout(() => setSuccessMessage(null), 3000);
+  const handleRemoveProduct = (productId: number) => {
+    // Find the product to get its name for the description
+    const item = items.find(p => p.id === productId);
+    const itemName = item ? (item.itemName || item.name || "item") : "item";
+
+    apiClient.delete<ApiResponse<ProductListItemModel[]>>(`company/${companyId}/productList/${detailsId}/productItems/${productId}?deliveryStep=REMOVE_STOCK&description=Removing ${encodeURIComponent(itemName)} from product list`)
+      .then(data => {
+        // Extract the updated product list from the response
+        const updatedItems = data?.payload || [];
+        if (Array.isArray(updatedItems)) {
+          setItems(updatedItems);
+
+          // Check if the first item has a new productListDetailsId
+          if (updatedItems.length > 0 && updatedItems[0].productListDetailsId) {
+            setDetailsId(updatedItems[0].productListDetailsId);
+          }
+        } else {
+          // Fallback to manual update if response doesn't contain expected data
+          setItems(items.filter(p => p.id !== productId));
+        }
+      })
+      .catch(error => {
+        // Handle error
+        const errorMsg = error?.message || "Failed to remove product";
+        setError(errorMsg);
+        console.error("Error removing product:", error);
+      });
   };
 
   const handleAddProduct = () => {
@@ -183,40 +331,52 @@ const ProductListDetails = ({
       return;
     }
 
-    // In a real app, this would be an API call
-    // fetch(`http://localhost:8080/company/${companyId}/productList/${productListId}/productItems`, {
-    //   method: 'PUT',
-    //   headers: { 'Content-Type': 'application/json' },
-    //   body: JSON.stringify(newProduct)
-    // })
-    //   .then(response => response.json())
-    //   .then(data => {
-    //     setProducts([...products, { ...newProduct, id: Date.now() }]);
-    //     setNewProduct({ name: "", quantity: 0 });
-    //     setIsAddProductDialogOpen(false);
-    //     setSuccessMessage("Product added successfully");
-    //   })
-    //   .catch(error => setError("Failed to add product"));
+    apiClient.put<ApiResponse<ProductListItemModel[]>>(`company/${companyId}/productList/${detailsId}/productItems`, {
+        ...newProduct,
+        deliveryStep: "ADD_STOCK",
+        description: `Adding new product: ${newProduct.name}`
+      })
+      .then(data => {
+        // Extract the updated product list from the response
+        const updatedItems = data?.payload || [];
+        if (Array.isArray(updatedItems) && updatedItems.length > 0) {
+          // Update the entire product list with the response
+          setItems(updatedItems);
 
-    // Using mock response for now
-    const newProductWithId = { ...newProduct, id: Date.now() };
-    setProducts([...products, newProductWithId]);
-    setNewProduct({ name: "", quantity: 0 });
-    setIsAddProductDialogOpen(false);
-    setSuccessMessage("Product added successfully");
-    setTimeout(() => setSuccessMessage(null), 3000);
+          // Check if the first item has a new productListDetailsId
+          if (updatedItems[0] && updatedItems[0].productListDetailsId) {
+            setDetailsId(updatedItems[0].productListDetailsId);
+          }
+
+          setNewProduct({ name: "", quantity: 0 });
+          setIsAddProductDialogOpen(false);
+        }
+        // else {
+        //   // Fallback: Extract single product from payload
+        //   const itemData = data?.payload || {};
+        //   if (itemData.id) {
+        //     setItems([...items, itemData]);
+        //
+        //     // Check if the item has a new productListDetailsId
+        //     if (itemData.productListDetailsId) {
+        //       setDetailsId(itemData.productListDetailsId);
+        //     }
+        //
+        //     setNewProduct({ name: "", quantity: 0 });
+        //     setIsAddProductDialogOpen(false);
+        //   } else {
+        //     setError("Failed to add product: Invalid response data");
+        //   }
+        // }
+      })
+      .catch(error => setError("Failed to add product"));
   };
 
   const getStatusBadge = () => {
-    switch (deliveryStatus) {
-      case "not_started":
-        return <Badge variant="outline">Not Started</Badge>;
-      case "in_progress":
-        return <Badge variant="secondary">In Progress</Badge>;
-      case "completed":
-        return <Badge variant="default">Completed</Badge>;
-      default:
-        return null;
+    if (editing) {
+      return <Badge variant="secondary">Onboarding in Progress</Badge>;
+    } else {
+      return <Badge variant="outline">Ready for Onboarding</Badge>;
     }
   };
 
@@ -228,7 +388,7 @@ const ProductListDetails = ({
             <div>
               <CardTitle className="text-2xl">{shopName}</CardTitle>
               <p className="text-muted-foreground mt-1">
-                Product List ID: {productListId}
+                Product List ID: {detailsId}
               </p>
               <p className="text-muted-foreground">Date: {date}</p>
             </div>
@@ -244,110 +404,188 @@ const ProductListDetails = ({
             </Alert>
           )}
 
-          {successMessage && (
-            <Alert className="mb-4 bg-green-50 text-green-800 border-green-200">
-              <AlertDescription>{successMessage}</AlertDescription>
+          {loading && (
+            <div className="flex justify-center my-8">
+              <Spinner />
+            </div>
+          )}
+
+          {loadingInitial && !loading && (
+            <Alert className="mb-4">
+              <AlertDescription>Loading initial version data...</AlertDescription>
             </Alert>
           )}
+
+          {/* Render step tags */}
+          <div className="w-full overflow-x-auto mb-6">
+            <div className="flex flex-wrap gap-2 mb-2">
+              {checkpointOrder.map((step, i) => {
+                // Determine the variant based on the step's position
+                let variant: BadgeProps["variant"] = "outline";
+
+                if (i < currentIndex)       variant = "secondary";
+                else if (i === currentIndex) variant = "default";
+
+                return (
+                    <Badge key={step} variant={variant}>
+                      {step}
+                    </Badge>
+                );
+              })}
+            </div>
+          </div>
+
+          <div className="mb-2 flex items-center justify-between">
+            <h3 className="text-lg font-medium">Product List Comparison</h3>
+            <div className="flex items-center space-x-4">
+              <div className="flex items-center">
+                <div className="h-3 w-3 rounded-full bg-primary mr-2"></div>
+                <span className="text-sm">Current Version</span>
+              </div>
+              <div className="flex items-center">
+                <div className="h-3 w-3 rounded-full bg-muted/50 mr-2"></div>
+                <span className="text-sm">Initial Version (Removed Items)</span>
+              </div>
+            </div>
+          </div>
 
           <div className="rounded-md border">
             <Table>
               <TableHeader>
                 <TableRow>
+                  <TableHead>Row</TableHead>
                   <TableHead>Product Name</TableHead>
-                  <TableHead className="w-[150px]">Quantity</TableHead>
-                  {deliveryStatus === "in_progress" && (
+                  <TableHead className="w-[150px]">Initial Quantity</TableHead>
+                  <TableHead className="w-[150px]">Current Quantity</TableHead>
+                  {editing && (
                     <TableHead className="w-[150px]">Actions</TableHead>
                   )}
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {products.map((product) => (
-                  <TableRow key={product.id}>
-                    <TableCell>{product.name}</TableCell>
-                    <TableCell>
-                      {editingProduct?.id === product.id ? (
-                        <div className="flex items-center space-x-2">
+                {/* First, render items that are in the current version */}
+                {items.map((item, index) => {
+                  // Find matching item in initialItems
+                  const initialItem = initialItems.find(
+                    (i) => i.id === item.id ||
+                           (i.itemName && item.itemName && i.itemName === item.itemName) ||
+                           (i.name && item.name && i.name === item.name)
+                  );
+
+                  return (
+                    <TableRow key={item.id}>
+                      <TableCell>{index + 1}</TableCell>
+                      <TableCell>{item.itemName || item.name || "Unknown Product"}</TableCell>
+                      <TableCell>
+                        {initialItem ? (
+                          <span>{initialItem.quantity}{initialItem.unit ? ` ${initialItem.unit}` : ''}</span>
+                        ) : (
+                          <span>-</span>
+                        )}
+                      </TableCell>
+                      <TableCell>
+                        {editing ? (
                           <Input
                             type="number"
-                            value={newQuantity}
-                            onChange={(e) =>
-                              setNewQuantity(Number(e.target.value))
-                            }
+                            value={overrides[item.id] ?? item.quantity}
+                            onChange={(e) => setOverrides(prev => ({
+                              ...prev,
+                              [item.id]: parseFloat(e.target.value)
+                            }))}
                             className="w-20"
                           />
-                          <Button
-                            size="sm"
-                            variant="ghost"
-                            onClick={handleSaveQuantity}
-                          >
-                            <Save className="h-4 w-4" />
-                          </Button>
-                          <Button
-                            size="sm"
-                            variant="ghost"
-                            onClick={() => setEditingProduct(null)}
-                          >
-                            <X className="h-4 w-4" />
-                          </Button>
-                        </div>
-                      ) : (
-                        <span>{product.quantity}</span>
-                      )}
-                    </TableCell>
-                    {deliveryStatus === "in_progress" && (
-                      <TableCell>
-                        <div className="flex items-center space-x-2">
-                          <Button
-                            size="sm"
-                            variant="ghost"
-                            onClick={() => handleEditQuantity(product)}
-                            disabled={editingProduct !== null}
-                          >
-                            <Edit className="h-4 w-4" />
-                          </Button>
-                          <Button
-                            size="sm"
-                            variant="ghost"
-                            onClick={() => handleRemoveProduct(product.id)}
-                            disabled={editingProduct !== null}
-                          >
-                            <Trash2 className="h-4 w-4" />
-                          </Button>
-                        </div>
+                        ) : (
+                          <span>{item.quantity}{item.unit ? ` ${item.unit}` : ''}</span>
+                        )}
                       </TableCell>
-                    )}
-                  </TableRow>
-                ))}
+                      {editing && (
+                        <TableCell>
+                          <div className="flex items-center space-x-2">
+                            <Button
+                              size="sm"
+                              variant="ghost"
+                              onClick={() => handleRemoveProduct(item.id)}
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </Button>
+                          </div>
+                        </TableCell>
+                      )}
+                    </TableRow>
+                  );
+                })}
+
+                {/* Then, render items that are only in the initial version */}
+                {initialItems
+                  .filter(initialItem =>
+                    !items.some(item =>
+                      item.id === initialItem.id ||
+                      (item.itemName && initialItem.itemName && item.itemName === initialItem.itemName) ||
+                      (item.name && initialItem.name && item.name === initialItem.name)
+                    )
+                  )
+                  .map(initialItem => (
+                    <TableRow key={`initial-${initialItem.id}`} className="bg-muted/20">
+                      <TableCell>{initialItem.itemName || initialItem.name || "Unknown Product"}</TableCell>
+                      <TableCell>
+                        <span>{initialItem.quantity}{initialItem.unit ? ` ${initialItem.unit}` : ''}</span>
+                      </TableCell>
+                      <TableCell>
+                        <span className="text-muted-foreground">Removed</span>
+                      </TableCell>
+                      {editing && (
+                        <TableCell>
+                          <div className="flex items-center space-x-2">
+                            {/* Add button to restore item if needed */}
+                          </div>
+                        </TableCell>
+                      )}
+                    </TableRow>
+                  ))
+                }
               </TableBody>
             </Table>
           </div>
         </CardContent>
-        <CardFooter className="flex justify-between">
-          <div>
-            {deliveryStatus === "in_progress" && (
-              <Button
-                variant="outline"
-                onClick={() => setIsAddProductDialogOpen(true)}
-                disabled={editingProduct !== null}
-              >
-                <Plus className="mr-2 h-4 w-4" /> Add Product
-              </Button>
-            )}
-          </div>
-          <div className="flex space-x-2">
-            {deliveryStatus === "not_started" && (
-              <Button onClick={handleStartDelivery}>Start Delivery</Button>
-            )}
-            {deliveryStatus === "in_progress" && (
-              <Button
-                onClick={handleCompleteDelivery}
-                disabled={editingProduct !== null}
-              >
-                Complete Delivery
-              </Button>
-            )}
-          </div>
+        <CardFooter className="flex flex-col space-y-4">
+          {/* Adjust action button based on currentStepName */}
+          {currentStepName === "FINAL" ? (
+            <Badge variant="outline" className="self-end">Delivered</Badge>
+          ) : !editing ? (
+            <Button
+              onClick={handleStartOnboarding}
+              className="self-end"
+            >
+              {buttonLabel}
+            </Button>
+          ) : (
+            <>
+              <Textarea
+                placeholder="Notes for this onboarding step"
+                value={description}
+                onChange={e => setDescription(e.target.value)}
+                className="w-full"
+              />
+              <div className="flex justify-between w-full">
+                {/* Only show Add Product button during ON_BOARDING and OFF_LOADING */}
+                {(currentStepName === "ON_BOARDING" || currentStepName === "OFF_LOADING") && (
+                  <Button
+                    variant="outline"
+                    onClick={() => setIsAddProductDialogOpen(true)}
+                  >
+                    <Plus className="mr-2 h-4 w-4" /> Add Product
+                  </Button>
+                )}
+                <Button
+                  onClick={handleAdvanceStep}
+                  disabled={loading}
+                  className={currentStepName === "ON_BOARDING" || currentStepName === "OFF_LOADING" ? "" : "ml-auto"}
+                >
+                  {buttonLabel}
+                </Button>
+              </div>
+            </>
+          )}
         </CardFooter>
       </Card>
 
