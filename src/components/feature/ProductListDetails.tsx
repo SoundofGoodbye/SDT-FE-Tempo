@@ -51,33 +51,27 @@ const ProductListDetails = ({
     "INITIAL_REQUEST","ON_BOARDING","OFF_LOADING","FINAL"
   ];
 
-  // Define button labels for each step based on editing state
-  const buttonLabelMap = {
-    INITIAL_REQUEST: {
-      start: "Start Onboarding",
-      complete: "Complete Onboarding"
-    },
-    ON_BOARDING: {
-      start: "Start Offloading",
-      complete: "Complete Offloading"
-    },
-    OFF_LOADING: {
-      start: "Finish Delivery",
-      complete: "Finalize Delivery"
-    },
-    FINAL: {
-      start: "",
-      complete: ""
+  function getStepButtonLabel(stepName: string, editing: boolean) {
+    switch (stepName.toLowerCase()) {
+      case "initial_request":
+      case "requested":
+        return editing ? "Complete Onboarding" : "Start Onboarding";
+      case "on_boarding":
+      case "onboarding":
+        return editing ? "Complete Offloading" : "Start Offloading";
+      case "off_loading":
+      case "offloading":
+        return editing ? "Finalize Delivery" : "Finish Delivery";
+      case "final":
+      case "delivered":
+        return "";
+      default:
+        return editing ? "Complete Step" : "Proceed";
     }
-  } as const;
+  }
 
   // Get the current index in the checkpoint order
   const currentIndex = checkpointOrder.indexOf(currentStepName);
-
-  // Get the button label for the current step based on editing state
-  const buttonLabel = editing
-    ? (buttonLabelMap[currentStepName]?.complete || "Proceed")
-    : (buttonLabelMap[currentStepName]?.start || "Proceed");
 
   // Keep existing state for backward compatibility
   const [isAddProductDialogOpen, setIsAddProductDialogOpen] = useState(false);
@@ -99,10 +93,11 @@ const ProductListDetails = ({
         );
 
         if (response && response.payload && Array.isArray(response.payload)) {
-          // Find the initial version (with step type "INITIAL_REQUEST")
-          const initialVersion = response.payload.find(
-            (version) => version.deliveryStepName === "INITIAL_REQUEST"
-          );
+          // Find the version with the earliest workflow step order (i.e., first step)
+          const initialVersion = response.payload.reduce((prev, curr) => {
+            if (!prev) return curr;
+            return (curr.stepOrder ?? curr.workflowStepOrder ?? 99) < (prev.stepOrder ?? prev.workflowStepOrder ?? 99) ? curr : prev;
+          }, null);
 
           // Find the latest version to use as the current version
           const latestVersion = response.payload[response.payload.length - 1];
@@ -185,50 +180,20 @@ const ProductListDetails = ({
 
   const handleAdvanceStep = async () => {
     setLoading(true);
+    setError(null);
     try {
       const body = {
         description,
         itemUpdates: Object.entries(overrides)
-          .map(([id, qty]) => ({ id: +id, quantity: qty }))
+            .filter(([id, qty]) => typeof qty === 'number' && !isNaN(qty))
+            .map(([id, qty]) => ({ id: +id, quantity: qty }))
       };
-
-      // Use the same advance endpoint for all steps
       const resp = await apiClient.post<ApiResponse<ProductListItemModel[]>>(
           `/company/${companyId}/productList/${detailsId}/onboard`,
           body
       );
-
-      // resp.payload is the new list of items
-      setItems(resp.payload);
-
-      // Capture the newly returned productListDetailsId in a local variable
-      const newDetailsId = resp.payload && resp.payload.length > 0
-        ? resp.payload[0].productListDetailsId
-        : null;
-
-      // Update detailsId state if we have a new ID
-      if (newDetailsId) {
-        setDetailsId(newDetailsId);
-      }
-
-      // Fetch updated versions to get the new currentStepName
-      const versionsResp = await apiClient.get<ApiResponse<ProductListVersionModel[]>>(
-        `company/${companyId}/productList?shopId=${shopId}&date=${date}`
-      );
-
-      if (versionsResp && versionsResp.payload) {
-        const versionsData = Array.isArray(versionsResp.payload) ? versionsResp.payload : [];
-        setVersions(versionsData);
-
-        // Update currentStepName using the captured newDetailsId
-        if (versionsData.length > 0 && newDetailsId) {
-          const currentVersion = versionsData.find(v => v.productListDetailsId === newDetailsId) ||
-                                versionsData[versionsData.length - 1];
-          setCurrentStepName(currentVersion.deliveryStepName);
-        }
-      }
-
-      // reset overrides & description
+      setItems(resp.payload || []);
+      // Handle detailsId, version refresh, etc.
       setOverrides({});
       setDescription("");
       setEditing(false);
@@ -238,6 +203,7 @@ const ProductListDetails = ({
       setLoading(false);
     }
   };
+
 
   // We no longer need these functions as we're using overrides state
   // and handleCompleteOnboarding for saving changes
@@ -507,7 +473,7 @@ const ProductListDetails = ({
               onClick={handleStartOnboarding}
               className="self-end"
             >
-              {buttonLabel}
+              {getStepButtonLabel(currentStepName, editing)}
             </Button>
           ) : (
             <>
@@ -532,7 +498,7 @@ const ProductListDetails = ({
                   disabled={loading}
                   className={currentStepName === "ON_BOARDING" || currentStepName === "OFF_LOADING" ? "" : "ml-auto"}
                 >
-                  {buttonLabel}
+                  {getStepButtonLabel(currentStepName, editing)}
                 </Button>
               </div>
             </>

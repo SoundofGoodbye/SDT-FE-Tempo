@@ -23,7 +23,8 @@ export interface VersionModel {
 
 export interface ProductListVersionModel {
     versionId: number;
-    deliveryStepName: StepName;
+    workflowStepId: number;
+    workflowStepName: string;
     productListDetailsId: number;
     timestamp?: string;
 
@@ -45,6 +46,15 @@ export interface ProductItemSummary {
     name: string;
     quantity: number;
     notes: string | null;
+}
+
+// A workflow step as returned by the new BE
+export interface WorkflowStep {
+    id: number;
+    stepTemplateId: number; // ID of the template
+    stepOrder: number;
+    customName: string;
+    isMandatory: boolean;
 }
 
 // Used in order/actual product lists (more detailed screens)
