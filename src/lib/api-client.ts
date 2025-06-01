@@ -41,7 +41,8 @@ const apiClient = {
    * @param options - Request options including responseType
    * @returns Promise with the response data
    */
-  get: async <T>(endpoint: string, options?: RequestOptions): Promise<T> => {
+
+  get: async <T>(endpoint: string, options?: RequestOptions): Promise<T | null> => {
     try {
       const url = `${API_BASE_URL}${endpoint.startsWith('/') ? endpoint : `/${endpoint}`}`;
 
@@ -59,6 +60,11 @@ const apiClient = {
       const response = await fetch(url, {
         headers
       });
+
+      if (response.status === 404) {
+        // Не логвай като грешка, просто върни null
+        return null;
+      }
 
       if (!response.ok) {
         throw new Error(`API request failed: ${response.statusText}`);
@@ -93,6 +99,7 @@ const apiClient = {
         }
       }
     } catch (error) {
+      // Логвай само неочаквани грешки
       console.error(`Error fetching from ${endpoint}:`, error);
       throw error;
     }
