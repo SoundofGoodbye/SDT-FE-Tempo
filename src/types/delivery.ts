@@ -85,3 +85,10 @@ export interface DiffItem {
     notesA: string | null;
     notesB: string | null;
 }
+
+export interface WorkflowStepModel {
+    id: number;
+    stepKey: string;
+    customName: string;
+    order: number;
+}
