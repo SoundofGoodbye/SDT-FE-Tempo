@@ -7,6 +7,7 @@ export interface WorkflowStep {
     stepKey: string;
     customName: string;
     order: number;
+    metaJson?: string;
 }
 
 export interface UseDeliveryWorkflowResult {

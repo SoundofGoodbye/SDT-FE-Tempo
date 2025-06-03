@@ -358,25 +358,47 @@ const ProductListDetails = ({
           </div>
         </CardContent>
         <CardFooter className="flex flex-col space-y-4">
-          {/* Adjust action button based on currentStepName */}
-          {isFinalStep ?  (
-            <Badge variant="outline" className="self-end">Delivered</Badge>
+          {isFinalStep ? (
+              <Badge variant="outline" className="self-end">Delivered</Badge>
           ) : !editing ? (
-              <Button onClick={() => setEditing(true)} className="self-end">
-                {`Start ${currentStep?.customName}`}
-              </Button>
+              (() => {
+                const currentIndex = workflowSteps.findIndex(s => s.id === currentStep?.id);
+                const nextStep = currentIndex !== -1 ? workflowSteps[currentIndex + 1] : null;
+
+                let actionLabel = `Start ${nextStep?.customName || nextStep?.stepKey || ''}`;
+                try {
+                  const meta = nextStep?.metaJson ? JSON.parse(nextStep.metaJson) : {};
+                  console.log(meta);
+                  actionLabel = meta.actionLabel || actionLabel;
+                } catch {}
+
+                return (
+                    <Button onClick={() => setEditing(true)} className="self-end">
+                      {actionLabel}
+                    </Button>
+                );
+              })()
           ) : (
-            <>
-              <Textarea
-                placeholder="Notes for this onboarding step"
-                value={description}
-                onChange={e => setDescription(e.target.value)}
-                className="w-full"
-              />
-              <div className="flex justify-between w-full">
-                <Button onClick={handleAdvance}>Complete {currentStep?.customName}</Button>
-              </div>
-            </>
+              <>
+                <Textarea
+                    placeholder="Notes for this onboarding step"
+                    value={description}
+                    onChange={e => setDescription(e.target.value)}
+                    className="w-full"
+                />
+                <div className="flex justify-between w-full">
+                  {(() => {
+                    let label = `Complete ${currentStep?.customName || currentStep?.stepKey || ''}`;
+                    try {
+                      const meta = currentStep?.metaJson ? JSON.parse(currentStep.metaJson) : {};
+                      label = meta.actionLabel || label;
+                    } catch {}
+                    return (
+                        <Button onClick={handleAdvance}>{label}</Button>
+                    );
+                  })()}
+                </div>
+              </>
           )}
         </CardFooter>
       </Card>

@@ -1,3 +1,4 @@
+// Refactored DeliveryMatrixPage.tsx (no hardcoded step names, dynamic snapshot-based labels)
 "use client";
 
 import React, { useEffect, useState } from "react";
@@ -5,33 +6,19 @@ import { useParams } from "next/navigation";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { useRequireAuth } from "@/hooks/useRequireAuth";
 import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
+  Table, TableBody, TableCell, TableHead, TableHeader, TableRow
 } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import {
-  Tooltip,
-  TooltipContent,
-  TooltipProvider,
-  TooltipTrigger,
+  Tooltip, TooltipContent, TooltipProvider, TooltipTrigger
 } from "@/components/ui/tooltip";
 import { DeliveryTabs } from "@/components/feature/DeliveryTabs";
 import { apiClient, ApiResponse } from "@/lib/api/api-client";
 import {
-  Drawer,
-  DrawerContent,
-  DrawerHeader,
-  DrawerTitle,
-  DrawerDescription,
-  DrawerFooter,
-  DrawerClose,
+  Drawer, DrawerContent, DrawerHeader, DrawerTitle, DrawerDescription,
+  DrawerFooter, DrawerClose
 } from "@/components/ui/drawer";
 
-// Define interfaces for the API response
 interface DeliveryMatrixItem {
   itemId: number;
   itemName: string;
@@ -40,36 +27,18 @@ interface DeliveryMatrixItem {
 }
 
 interface DeliveryMatrixSnapshot {
-  stepName: StepName;
+  stepKey: string;
   snapshotDate: string;
   note: string;
   items: DeliveryMatrixItem[];
 }
 
-const checkpointOrder: StepName[] = [
-  "INITIAL_REQUEST",
-  "ON_BOARDING",
-  "OFF_LOADING",
-  "FINAL",
-];
-
-const stepLabels = {
-  "INITIAL_REQUEST": "Request",
-  "ON_BOARDING": "Onboarding",
-  "OFF_LOADING": "Mid-Trip",
-  "FINAL": "Delivered"
-} as const;
-
-type StepName = keyof typeof stepLabels;
-
 export default function DeliveryMatrixPage() {
-  // Use the auth hook to protect this page
   useRequireAuth();
-
   const params = useParams();
   const shopId = params.shopId as string;
   const date = params.date as string;
-  const companyId = "1"; // Hardcoded as mentioned in requirements
+  const companyId = "1";
 
   const [snapshots, setSnapshots] = useState<DeliveryMatrixSnapshot[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -78,439 +47,209 @@ export default function DeliveryMatrixPage() {
   const [selectedItemId, setSelectedItemId] = useState<number | null>(null);
   const [drawerOpen, setDrawerOpen] = useState(false);
 
-  // Fetch matrix data on mount
   useEffect(() => {
     const fetchMatrixData = async () => {
       try {
-        setIsLoading(true);
         const response = await apiClient.get<ApiResponse<DeliveryMatrixSnapshot[]>>(
-          `company/${companyId}/deliveries/matrix?shopId=${shopId}&date=${date}`
+            `company/${companyId}/deliveries/matrix?shopId=${shopId}&date=${date}`
         );
-
-        if (response && response.payload) {
-          setSnapshots(response.payload);
-        } else {
-          setError("Invalid response format");
-        }
-      } catch (error) {
-        console.error("Error fetching matrix data:", error);
+        if (response?.payload) setSnapshots(response.payload);
+        else setError("Invalid response format");
+      } catch (e) {
+        console.error("Matrix fetch error:", e);
         setError("Failed to load matrix data");
       } finally {
         setIsLoading(false);
       }
     };
-
     fetchMatrixData();
   }, [companyId, shopId, date]);
 
-  // Get all unique item IDs across all snapshots
   const allItemIds = React.useMemo(() => {
-    const itemIds = new Set<number>();
-    snapshots.forEach(snapshot => {
-      snapshot.items.forEach(item => {
-        itemIds.add(item.itemId);
-      });
-    });
-    return Array.from(itemIds);
+    const ids = new Set<number>();
+    snapshots.forEach(s => s.items.forEach(i => ids.add(i.itemId)));
+    return Array.from(ids);
   }, [snapshots]);
 
-  // Create a map of all items with their names
   const itemsMap = React.useMemo(() => {
     const map = new Map<number, string>();
-    snapshots.forEach(snapshot => {
-      snapshot.items.forEach(item => {
-        map.set(item.itemId, item.itemName);
-      });
-    });
+    snapshots.forEach(s => s.items.forEach(i => map.set(i.itemId, i.itemName)));
     return map;
   }, [snapshots]);
 
-  // Sort snapshots by checkpoint order
-  const sortedSnapshots = React.useMemo(() => {
-    return [...snapshots].sort((a, b) => {
-      const indexA = checkpointOrder.indexOf(a.stepName);
-      const indexB = checkpointOrder.indexOf(b.stepName);
-      return indexA - indexB;
-    });
+  const hasProductChanged = React.useCallback((itemId: number) => {
+    const quantities = snapshots.map(s => s.items.find(i => i.itemId === itemId)?.quantity ?? null)
+        .filter(q => q !== null);
+    return quantities.length > 1 && !quantities.every(q => q === quantities[0]);
   }, [snapshots]);
 
-  // Determine if a product has changed across phases
-  const hasProductChanged = React.useCallback((itemId: number) => {
-    if (sortedSnapshots.length <= 1) return false;
+  const filteredItemIds = React.useMemo(() =>
+          showOnlyChanged ? allItemIds.filter(hasProductChanged) : allItemIds,
+      [allItemIds, hasProductChanged, showOnlyChanged]
+  );
 
-    // Get all quantities for this item across snapshots
-    const quantities = sortedSnapshots.map(snapshot => {
-      const item = snapshot.items.find(item => item.itemId === itemId);
-      return item ? item.quantity : null;
-    }).filter(q => q !== null);
-
-    // If we have fewer than 2 quantities, we can't determine change
-    if (quantities.length < 2) return false;
-
-    // Check if all quantities are the same
-    const firstQuantity = quantities[0];
-    return !quantities.every(q => q === firstQuantity);
-  }, [sortedSnapshots]);
-
-  // Filter item IDs based on showOnlyChanged setting
-  const filteredItemIds = React.useMemo(() => {
-    if (!showOnlyChanged) return allItemIds;
-    return allItemIds.filter(itemId => hasProductChanged(itemId));
-  }, [allItemIds, hasProductChanged, showOnlyChanged]);
-
-  // Get quantity for a specific item in a specific snapshot
-  const getItemQuantity = (itemId: number, snapshot: DeliveryMatrixSnapshot) => {
-    const item = snapshot.items.find(item => item.itemId === itemId);
+  const getItemQuantity = (itemId: number, snap: DeliveryMatrixSnapshot) => {
+    const item = snap.items.find(i => i.itemId === itemId);
     return item ? { quantity: item.quantity, unit: item.unit } : null;
   };
 
-  // Calculate summary metrics
+  const compareQuantities = (itemId: number, current: DeliveryMatrixSnapshot, idx: number) => {
+    if (idx === 0) return null;
+    const curr = getItemQuantity(itemId, current);
+    const prev = getItemQuantity(itemId, snapshots[idx - 1]);
+    if (!curr || !prev) return null;
+    return curr.quantity > prev.quantity ? "increase" : curr.quantity < prev.quantity ? "decrease" : "same";
+  };
+
   const calculateSummaryMetrics = React.useMemo(() => {
-    if (sortedSnapshots.length < 2) {
-      return {
-        netChange: 0,
-        totalAdded: 0,
-        totalRemoved: 0
-      };
-    }
-
-    // Get initial and final snapshots
-    const initialSnapshot = sortedSnapshots[0];
-    const finalSnapshot = sortedSnapshots[sortedSnapshots.length - 1];
-
-    // Calculate total quantities for initial and final snapshots
-    const initialTotal = initialSnapshot.items.reduce((sum, item) => sum + item.quantity, 0);
-    const finalTotal = finalSnapshot.items.reduce((sum, item) => sum + item.quantity, 0);
-
-    // Calculate net change
-    const netChange = finalTotal - initialTotal;
-
-    // Calculate total added and removed
-    let totalAdded = 0;
-    let totalRemoved = 0;
-
-    // For each item, compare initial and final quantities
-    allItemIds.forEach(itemId => {
-      const initialItem = initialSnapshot.items.find(item => item.itemId === itemId);
-      const finalItem = finalSnapshot.items.find(item => item.itemId === itemId);
-
-      const initialQty = initialItem ? initialItem.quantity : 0;
-      const finalQty = finalItem ? finalItem.quantity : 0;
-      const delta = finalQty - initialQty;
-
-      if (delta > 0) {
-        totalAdded += delta;
-      } else if (delta < 0) {
-        totalRemoved += Math.abs(delta);
-      }
+    if (snapshots.length < 2) return { netChange: 0, totalAdded: 0, totalRemoved: 0 };
+    const [first, last] = [snapshots[0], snapshots[snapshots.length - 1]];
+    let net = 0, add = 0, rem = 0;
+    allItemIds.forEach(id => {
+      const iQty = first.items.find(i => i.itemId === id)?.quantity || 0;
+      const fQty = last.items.find(i => i.itemId === id)?.quantity || 0;
+      const delta = fQty - iQty;
+      net += delta;
+      if (delta > 0) add += delta;
+      else if (delta < 0) rem += Math.abs(delta);
     });
+    return { netChange: net, totalAdded: add, totalRemoved: rem };
+  }, [snapshots, allItemIds]);
 
-    return {
-      netChange,
-      totalAdded,
-      totalRemoved
-    };
-  }, [sortedSnapshots, allItemIds]);
-
-  // Handle row click to open drawer
   const handleRowClick = (itemId: number) => {
     setSelectedItemId(itemId);
     setDrawerOpen(true);
   };
 
-  // Compare quantities between current and previous snapshot
-  const compareQuantities = (
-    itemId: number,
-    currentSnapshot: DeliveryMatrixSnapshot,
-    snapshotIndex: number
-  ) => {
-    if (snapshotIndex === 0) return null; // No comparison for first snapshot
-
-    const currentItem = getItemQuantity(itemId, currentSnapshot);
-    if (!currentItem) return null;
-
-    const previousSnapshot = sortedSnapshots[snapshotIndex - 1];
-    const previousItem = getItemQuantity(itemId, previousSnapshot);
-    if (!previousItem) return null;
-
-    if (currentItem.quantity > previousItem.quantity) {
-      return "increase";
-    } else if (currentItem.quantity < previousItem.quantity) {
-      return "decrease";
-    }
-    return "same";
-  };
-
-  // Render loading state
-  if (isLoading) {
-    return (
-      <div className="container mx-auto py-6">
-        <DeliveryTabs shopId={shopId} date={date} />
-        <Card>
-          <CardContent className="pt-6">
-            <div className="flex justify-center items-center h-64">
-              <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div>
-            </div>
-          </CardContent>
-        </Card>
-      </div>
-    );
-  }
-
-  // Render error state
-  if (error) {
-    return (
-      <div className="container mx-auto py-6">
-        <DeliveryTabs shopId={shopId} date={date} />
-        <Card>
-          <CardHeader>
-            <CardTitle>Delivery Matrix – {date}</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="flex justify-center items-center h-64 bg-red-50 text-red-500 rounded-md">
-              <p>{error}</p>
-            </div>
-          </CardContent>
-        </Card>
-      </div>
-    );
-  }
-
-  // Render empty state
-  if (snapshots.length === 0 || allItemIds.length === 0) {
-    return (
-      <div className="container mx-auto py-6">
-        <DeliveryTabs shopId={shopId} date={date} />
-        <Card>
-          <CardHeader>
-            <CardTitle>Delivery Matrix – {date}</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="flex justify-center items-center h-64 bg-muted/20 rounded-md">
-              <p className="text-muted-foreground">No data available for this date.</p>
-            </div>
-          </CardContent>
-        </Card>
-      </div>
-    );
-  }
+  if (isLoading) return <div className="p-6">Loading...</div>;
+  if (error) return <div className="p-6 text-red-500">{error}</div>;
+  if (!snapshots.length) return <div className="p-6 text-muted">No data available.</div>;
 
   return (
-    <div className="container mx-auto py-6">
-      <DeliveryTabs shopId={shopId} date={date} />
-      <Card>
-        <CardHeader>
-          <CardTitle>Delivery Matrix – {date}</CardTitle>
-          <p className="text-sm text-muted-foreground">Shop ID: {shopId}</p>
-        </CardHeader>
-        <CardContent>
-          {/* Summary KPI Cards */}
-          <div className="grid grid-cols-1 sm:grid-cols-1 md:grid-cols-3 gap-4 mb-6">
-            <Card>
-              <CardContent className="pt-6">
-                <div className="text-center">
-                  <h3 className="text-lg font-medium text-muted-foreground mb-2">Net Change</h3>
-                  <p className={`text-2xl font-bold ${calculateSummaryMetrics.netChange > 0 ? 'text-green-600' : calculateSummaryMetrics.netChange < 0 ? 'text-red-600' : ''}`}>
-                    {calculateSummaryMetrics.netChange > 0 ? '+' : ''}{calculateSummaryMetrics.netChange}
-                  </p>
-                </div>
-              </CardContent>
-            </Card>
+      <div className="container mx-auto py-6">
+        <DeliveryTabs shopId={shopId} date={date} />
+        <Card>
+          <CardHeader>
+            <CardTitle>Delivery Matrix – {date}</CardTitle>
+            <p className="text-sm text-muted-foreground">Shop ID: {shopId}</p>
+          </CardHeader>
+          <CardContent>
+            <div className="grid grid-cols-1 sm:grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+              {["Net Change", "Total Added", "Total Removed/Broken"].map((label, i) => (
+                  <Card key={i}><CardContent className="pt-6 text-center">
+                    <h3 className="text-lg font-medium text-muted-foreground mb-2">{label}</h3>
+                    <p className={`text-2xl font-bold ${i === 1 ? 'text-green-600' : i === 2 ? 'text-red-600' : ''}`}>
+                      {i === 0 ? calculateSummaryMetrics.netChange : i === 1 ? `+${calculateSummaryMetrics.totalAdded}` : `-${calculateSummaryMetrics.totalRemoved}`}
+                    </p></CardContent></Card>
+              ))}
+            </div>
 
-            <Card>
-              <CardContent className="pt-6">
-                <div className="text-center">
-                  <h3 className="text-lg font-medium text-muted-foreground mb-2">Total Added</h3>
-                  <p className="text-2xl font-bold text-green-600">
-                    +{calculateSummaryMetrics.totalAdded}
-                  </p>
-                </div>
-              </CardContent>
-            </Card>
-
-            <Card>
-              <CardContent className="pt-6">
-                <div className="text-center">
-                  <h3 className="text-lg font-medium text-muted-foreground mb-2">Total Removed/Broken</h3>
-                  <p className="text-2xl font-bold text-red-600">
-                    -{calculateSummaryMetrics.totalRemoved}
-                  </p>
-                </div>
-              </CardContent>
-            </Card>
-          </div>
-
-          <div className="flex flex-col sm:flex-row items-start sm:items-center gap-2 mb-4">
-            <input
-              type="checkbox"
-              id="showOnlyChanged"
-              checked={showOnlyChanged}
-              onChange={(e) => setShowOnlyChanged(e.target.checked)}
-              className="h-4 w-4"
-            />
-            <label htmlFor="showOnlyChanged" className="text-sm font-medium">
+            <label className="flex gap-2 mb-4 text-sm font-medium">
+              <input type="checkbox" checked={showOnlyChanged} onChange={e => setShowOnlyChanged(e.target.checked)} />
               Show only changed products
             </label>
-          </div>
-          <div className="overflow-x-auto">
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Row</TableHead>
-                  <TableHead className="w-[200px]">Product</TableHead>
-                  {sortedSnapshots.map((snapshot, index) => (
-                    <TableHead key={snapshot.stepName} className="text-center whitespace-nowrap">
-                      {snapshot.note ? (
-                        <TooltipProvider>
-                          <Tooltip>
-                            <TooltipTrigger asChild>
-                              <div className="flex items-center justify-center">
-                                {stepLabels[snapshot.stepName] || snapshot.stepName}
-                                <span className="ml-1">📎</span>
-                              </div>
-                            </TooltipTrigger>
-                            <TooltipContent>
-                              <p>{snapshot.note}</p>
-                            </TooltipContent>
-                          </Tooltip>
-                        </TooltipProvider>
-                      ) : (
-                        stepLabels[snapshot.stepName] || snapshot.stepName
-                      )}
-                    </TableHead>
-                  ))}
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {filteredItemIds.map((itemId, index) => (
-                  <TableRow 
-                    key={itemId} 
-                    className="cursor-pointer hover:bg-muted/50"
-                    onClick={() => handleRowClick(itemId)}
-                  >
-                    <TableCell className="font-medium">{index + 1}</TableCell>
-                    <TableCell className="font-medium">
-                      {itemsMap.get(itemId) || `Item ${itemId}`}
-                    </TableCell>
-                    {sortedSnapshots.map((snapshot, index) => {
-                      const itemData = getItemQuantity(itemId, snapshot);
-                      const comparison = compareQuantities(itemId, snapshot, index);
 
-                      return (
-                        <TableCell key={snapshot.stepName} className="text-center">
-                          {itemData ? (
-                            <div className="flex items-center justify-center">
-                              <span>
-                                {itemData.quantity} {itemData.unit}
-                              </span>
-                              {comparison && comparison !== "same" && (
-                                <Badge 
-                                  className={`ml-2 ${
-                                    comparison === "increase" 
-                                      ? "bg-green-100 text-green-800" 
-                                      : "bg-red-100 text-red-800"
-                                  }`}
-                                  variant="outline"
-                                >
-                                  {comparison === "increase" 
-                                    ? "🟢" 
-                                    : "🔴"}
-                                </Badge>
-                              )}
-                            </div>
-                          ) : (
-                            "-"
-                          )}
-                        </TableCell>
-                      );
-                    })}
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          </div>
-        </CardContent>
-      </Card>
-
-      {/* Product Detail Drawer */}
-      <Drawer open={drawerOpen} onOpenChange={setDrawerOpen}>
-        <DrawerContent className="max-h-[80vh] p-4 sm:p-6">
-          <DrawerHeader>
-            <DrawerTitle>
-              {selectedItemId ? itemsMap.get(selectedItemId) || `Item ${selectedItemId}` : 'Product Details'}
-            </DrawerTitle>
-            <DrawerDescription>
-              Per-phase history for this product
-            </DrawerDescription>
-          </DrawerHeader>
-
-          <div className="px-4 pb-4">
-            {selectedItemId && (
+            <div className="overflow-x-auto">
               <Table>
                 <TableHeader>
                   <TableRow>
                     <TableHead>Row</TableHead>
-                    <TableHead>Phase</TableHead>
-                    <TableHead className="text-right">Quantity</TableHead>
-                    <TableHead>Note</TableHead>
+                    <TableHead>Product</TableHead>
+                    {snapshots.map((snap, i) => (
+                        <TableHead key={i} className="text-center">
+                          {snap.note ? (
+                              <TooltipProvider><Tooltip><TooltipTrigger>{snap.note} 📎</TooltipTrigger><TooltipContent>{snap.note}</TooltipContent></Tooltip></TooltipProvider>
+                          ) : snap.stepKey}
+                        </TableHead>
+                    ))}
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {sortedSnapshots.map((snapshot, index) => {
-                    const itemData = getItemQuantity(selectedItemId, snapshot);
-                    const comparison = index > 0 ? compareQuantities(selectedItemId, snapshot, index) : null;
-
-                    return (
-                      <TableRow key={snapshot.stepName}>
-                        <TableCell className="font-medium">{index + 1}</TableCell>
-                        <TableCell className="font-medium">
-                          {stepLabels[snapshot.stepName] || snapshot.stepName}
-                        </TableCell>
-                        <TableCell className="text-right">
-                          {itemData ? (
-                            <div className="flex items-center justify-end">
-                              <span>
-                                {itemData.quantity} {itemData.unit}
-                              </span>
-                              {comparison && comparison !== "same" && (
-                                <Badge 
-                                  className={`ml-2 ${
-                                    comparison === "increase" 
-                                      ? "bg-green-100 text-green-800" 
-                                      : "bg-red-100 text-red-800"
-                                  }`}
-                                  variant="outline"
-                                >
-                                  {comparison === "increase" 
-                                    ? "🟢" 
-                                    : "🔴"}
-                                </Badge>
-                              )}
-                            </div>
-                          ) : (
-                            "-"
-                          )}
-                        </TableCell>
-                        <TableCell>
-                          {snapshot.note || "-"}
-                        </TableCell>
+                  {filteredItemIds.map((id, rowIdx) => (
+                      <TableRow key={id} onClick={() => handleRowClick(id)} className="cursor-pointer hover:bg-muted/50">
+                        <TableCell>{rowIdx + 1}</TableCell>
+                        <TableCell>{itemsMap.get(id)}</TableCell>
+                        {snapshots.map((snap, i) => {
+                          const item = getItemQuantity(id, snap);
+                          const cmp = compareQuantities(id, snap, i);
+                          return (
+                              <TableCell key={i} className="text-center">
+                                {item ? (
+                                    <div className="flex items-center justify-center">
+                                      {item.quantity} {item.unit}
+                                      {cmp && cmp !== "same" && (
+                                          <Badge className={`ml-2 ${cmp === "increase" ? "bg-green-100 text-green-800" : "bg-red-100 text-red-800"}`} variant="outline">
+                                            {cmp === "increase" ? "🟢" : "🔴"}
+                                          </Badge>
+                                      )}
+                                    </div>
+                                ) : "-"}
+                              </TableCell>
+                          );
+                        })}
                       </TableRow>
-                    );
-                  })}
+                  ))}
                 </TableBody>
               </Table>
-            )}
-          </div>
+            </div>
+          </CardContent>
+        </Card>
 
-          <DrawerFooter>
-            <DrawerClose asChild>
-              <button className="px-4 py-2 bg-primary text-primary-foreground rounded-md">
-                Close
-              </button>
-            </DrawerClose>
-          </DrawerFooter>
-        </DrawerContent>
-      </Drawer>
-    </div>
+        {/* Drawer */}
+        <Drawer open={drawerOpen} onOpenChange={setDrawerOpen}>
+          <DrawerContent className="max-h-[80vh] p-4 sm:p-6">
+            <DrawerHeader>
+              <DrawerTitle>
+                {selectedItemId ? itemsMap.get(selectedItemId) || `Item ${selectedItemId}` : 'Product Details'}
+              </DrawerTitle>
+              <DrawerDescription>Per-phase history</DrawerDescription>
+            </DrawerHeader>
+            <div className="px-4 pb-4">
+              {selectedItemId && (
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Row</TableHead>
+                        <TableHead>Phase</TableHead>
+                        <TableHead className="text-right">Quantity</TableHead>
+                        <TableHead>Note</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {snapshots.map((snap, idx) => {
+                        const item = getItemQuantity(selectedItemId, snap);
+                        const cmp = idx > 0 ? compareQuantities(selectedItemId, snap, idx) : null;
+                        return (
+                            <TableRow key={idx}>
+                              <TableCell>{idx + 1}</TableCell>
+                              <TableCell>{snap.note || snap.stepKey}</TableCell>
+                              <TableCell className="text-right">
+                                {item ? (
+                                    <div className="flex items-center justify-end">
+                                      {item.quantity} {item.unit}
+                                      {cmp && cmp !== "same" && (
+                                          <Badge className={`ml-2 ${cmp === "increase" ? "bg-green-100 text-green-800" : "bg-red-100 text-red-800"}`} variant="outline">
+                                            {cmp === "increase" ? "🟢" : "🔴"}
+                                          </Badge>
+                                      )}
+                                    </div>
+                                ) : "-"}
+                              </TableCell>
+                              <TableCell>{snap.note || "-"}</TableCell>
+                            </TableRow>
+                        );
+                      })}
+                    </TableBody>
+                  </Table>
+              )}
+            </div>
+            <DrawerFooter>
+              <DrawerClose asChild>
+                <button className="px-4 py-2 bg-primary text-primary-foreground rounded-md">Close</button>
+              </DrawerClose>
+            </DrawerFooter>
+          </DrawerContent>
+        </Drawer>
+      </div>
   );
 }
