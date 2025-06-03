@@ -18,7 +18,7 @@ export interface BlobResponse {
 }
 
 export const getApiBaseUrl = (): string => {
-  return process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:8080";
+  return process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:8081";
 };
 
 export const isTokenExpired = (token: string): boolean => {
@@ -45,6 +45,42 @@ export const logout = (router?: ReturnType<typeof useRouter>): void => {
   localStorage.removeItem("userId");
   localStorage.removeItem("companyId");
   if (router) router.push("/");
+};
+
+export async function login({
+                              email,
+                              password,
+                            }: {
+  email: string;
+  password: string;
+}): Promise<{
+  accessToken: string;
+  companyId: number;
+  userId?: string;
+}> {
+  const response = await fetch(`${getApiBaseUrl()}/auth/login`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ email, password }),
+  });
+
+  if (!response.ok) {
+    throw new Error("Authentication failed");
+  }
+
+  return await response.json();
+}
+
+export const parseJwt = (token: string) => {
+  try {
+    const base64Url = token.split('.')[1];
+    const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
+    const payload = atob(base64);
+    return JSON.parse(payload);
+  } catch (e) {
+    console.error("Invalid JWT:", e);
+    return null;
+  }
 };
 
 function getAuthHeaders(): HeadersInit {
