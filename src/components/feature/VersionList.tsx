@@ -1,23 +1,11 @@
 import React, {useState} from "react";
 import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "./ui/table";
+  Table, TableBody, TableCell, TableHead, TableHeader, TableRow
+} from "@/components/ui/table";
 import {Button} from "@/components/ui/button";
-import apiClient from "@/lib/api-client";
+import { apiClient } from "@/lib/api/api-client";
 
-export type ProductItem = {
-  id: string;
-  productName: string;
-  qtyOrdered: number;
-  qtyActual: number;
-  notes: string;
-  price: number;
-};
+import type { ProductItem } from "@/types/delivery";
 
 type VersionListProps = {
   items: ProductItem[];
@@ -36,7 +24,7 @@ export const VersionList: React.FC<VersionListProps> = ({
   shopId,
   date,
 }) => {
-  
+
   const showExportCsv = shopId != undefined && date != undefined && companyId != undefined;
 
   const [isDownloading, setIsDownloading] = useState(false);

@@ -7,7 +7,7 @@ import {Table, TableBody, TableCell, TableHead, TableHeader, TableRow,} from "@/
 import {Button} from "@/components/ui/button";
 import {CalendarIcon} from "lucide-react";
 import {Icons} from "@/components/ui/icons";
-import apiClient, {ApiResponse} from "@/lib/api-client";
+import { apiClient, ApiResponse } from "@/lib/api/api-client";
 
 interface DeliveryHistoryProps {
   companyId?: string;

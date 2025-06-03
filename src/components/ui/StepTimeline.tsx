@@ -1,5 +1,5 @@
 import React from "react";
-import { Badge } from "./ui/badge";
+import { Badge } from "./badge";
 
 export type DeliveryStep = {
   id: string;

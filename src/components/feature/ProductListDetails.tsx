@@ -1,75 +1,28 @@
 "use client";
 
-import type { BadgeProps } from "./ui/badge";
-import React, { useState, useEffect } from "react";
-import { Button } from "./ui/button";
+import type {BadgeProps} from "../ui/badge";
+import {Badge} from "../ui/badge";
+import React, {useEffect, useState} from "react";
+import {Button} from "../ui/button";
+import {Card, CardContent, CardFooter, CardHeader, CardTitle,} from "../ui/card";
+import {Table, TableBody, TableCell, TableHead, TableHeader, TableRow,} from "../ui/table";
+import {Input} from "../ui/input";
+import {Textarea} from "../ui/textarea";
+import {Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle,} from "../ui/dialog";
+import {Plus, Trash2} from "lucide-react";
+import {Alert, AlertDescription} from "../ui/alert";
+import {Spinner} from "../ui/spinner";
+import { apiClient, ApiResponse } from "@/lib/api/api-client";
+import { useDeliveryWorkflow } from "@/hooks/useDeliveryWorkflow";
+
 import {
-  Card,
-  CardHeader,
-  CardTitle,
-  CardContent,
-  CardFooter,
-} from "./ui/card";
-import {
-  Table,
-  TableHeader,
-  TableRow,
-  TableHead,
-  TableBody,
-  TableCell,
-} from "./ui/table";
-import { Input } from "./ui/input";
-import { Textarea } from "./ui/textarea";
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogFooter,
-} from "./ui/dialog";
-import { Plus, Minus, Edit, Trash2, Save, X } from "lucide-react";
-import { Badge } from "./ui/badge";
-import { Alert, AlertDescription } from "./ui/alert";
-import { Spinner } from "./ui/spinner";
-import apiClient, { ApiResponse } from "@/lib/api-client";
+  ProductListDetailsProps,
+  ProductListItemModel,
+  ProductListVersionModel,
+  StepName,
+  VersionModel
+} from "@/types/delivery";
 import {AutoComplete} from "@/components/ui/AutoComplete";
-
-interface ProductListItemModel {
-  id: number;
-  name?: string;
-  itemName?: string;
-  quantity: number;
-  unit?: string;
-  productListDetailsId?: number;
-  // Add any additional fields that might be in the API response
-  [key: string]: any;
-}
-type StepName = "INITIAL_REQUEST" | "ON_BOARDING" | "OFF_LOADING" | "FINAL";
-
-interface VersionModel {
-  versionId: number;
-  deliveryStepName: StepName;
-  productListDetailsId: number;
-  // Add any additional fields that might be in the API response
-  [key: string]: any;
-}
-
-interface ProductListVersionModel {
-  versionId: number;
-  deliveryStepName: StepName;
-  productListDetailsId: number;
-  timestamp?: string;
-  // Add any additional fields that might be in the API response
-  [key: string]: any;
-}
-
-interface ProductListDetailsProps {
-  shopId?: number;
-  shopName?: string;
-  productListId?: number;
-  date?: string;
-  companyId?: number;
-}
 
 const ProductListDetails = ({
   shopId = 1,
@@ -92,42 +45,17 @@ const ProductListDetails = ({
   const [initialVersionId, setInitialVersionId] = useState<number | null>(null);
   const [loadingInitial, setLoadingInitial] = useState(false);
 
-  // Add state for versions and currentStepName
-  const [versions, setVersions] = useState<ProductListVersionModel[]>([]);
-  const [currentStepName, setCurrentStepName] = useState<StepName>("INITIAL_REQUEST");
-
-  // Define checkpoint steps in order
-  const checkpointOrder: StepName[] = [
-    "INITIAL_REQUEST","ON_BOARDING","OFF_LOADING","FINAL"
-  ];
-
-  // Define button labels for each step based on editing state
-  const buttonLabelMap = {
-    INITIAL_REQUEST: {
-      start: "Start Onboarding",
-      complete: "Complete Onboarding"
-    },
-    ON_BOARDING: {
-      start: "Start Offloading",
-      complete: "Complete Offloading"
-    },
-    OFF_LOADING: {
-      start: "Finish Delivery",
-      complete: "Finalize Delivery"
-    },
-    FINAL: {
-      start: "",
-      complete: ""
-    }
-  } as const;
-
-  // Get the current index in the checkpoint order
-  const currentIndex = checkpointOrder.indexOf(currentStepName);
-
-  // Get the button label for the current step based on editing state
-  const buttonLabel = editing
-    ? (buttonLabelMap[currentStepName]?.complete || "Proceed")
-    : (buttonLabelMap[currentStepName]?.start || "Proceed");
+  const {
+    workflowSteps,
+    currentStep,
+    initialVersion,
+    currentVersion,
+    advanceStep,
+    refetch,
+    isFinalStep,
+    loading: workflowLoading,
+    error: workflowError
+  } = useDeliveryWorkflow(companyId, shopId, date);
 
   // Keep existing state for backward compatibility
   const [isAddProductDialogOpen, setIsAddProductDialogOpen] = useState(false);
@@ -138,156 +66,42 @@ const ProductListDetails = ({
 
   // No longer needed as we'll determine detailsId from the API
 
-  // Fetch all versions and identify the initial version and current version
-  useEffect(() => {
-    const fetchVersions = async () => {
-      try {
-        setLoadingInitial(true);
-        setLoading(true);
-        const response = await apiClient.get<ApiResponse<VersionModel[]>>(
-          `company/${companyId}/productList?shopId=${shopId}&date=${date}`
-        );
-
-        if (response && response.payload && Array.isArray(response.payload)) {
-          // Find the initial version (with step type "INITIAL_REQUEST")
-          const initialVersion = response.payload.find(
-            (version) => version.deliveryStepName === "INITIAL_REQUEST"
-          );
-
-          // Find the latest version to use as the current version
-          const latestVersion = response.payload[response.payload.length - 1];
-
-          // Set the detailsId from the latest version
-          if (latestVersion) {
-            setDetailsId(latestVersion.productListDetailsId);
-
-            // Find the version with matching productListDetailsId to set currentStepName
-            const current = response.payload.find(v =>
-              v.productListDetailsId === latestVersion.productListDetailsId
-            ) || latestVersion;
-            setCurrentStepName(current.deliveryStepName);
-          }
-
-          if (initialVersion) {
-            setInitialVersionId(initialVersion.versionId);
-            // Fetch the initial version details
-            const initialItemsResponse = await apiClient.get<ApiResponse<ProductListItemModel[]>>(
-              `company/${companyId}/productListItems/${initialVersion.productListDetailsId}`
-            );
-            if (initialItemsResponse && initialItemsResponse.payload) {
-              setInitialItems(Array.isArray(initialItemsResponse.payload) ? initialItemsResponse.payload : []);
-            }
-          }
-        }
-      } catch (error) {
-        console.error("Failed to fetch versions:", error);
-        setError("Failed to fetch versions");
-      } finally {
-        setLoadingInitial(false);
-        setLoading(false);
-      }
-    };
-
-    fetchVersions();
-  }, [companyId, shopId, date]);
-
-  // Fetch product list details only when detailsId is available
-  useEffect(() => {
-    if (detailsId === null) return;
-
-    setLoading(true);
-    apiClient.get<ApiResponse<ProductListItemModel[]>>(`company/${companyId}/productListItems/${detailsId}`)
-      .then(data => {
-        // Extract items from payload
-        const itemsData = data?.payload || [];
-        setItems(Array.isArray(itemsData) ? itemsData : []);
-        // Clear overrides when loading new items
-        setOverrides({});
-        setLoading(false);
-
-        // After loading items, fetch versions data
-        return apiClient.get<ApiResponse<ProductListVersionModel[]>>(`company/${companyId}/productList?shopId=${shopId}&date=${date}`);
-      })
-      .then(data => {
-        if (data && data.payload) {
-          const versionsData = Array.isArray(data.payload) ? data.payload : [];
-          setVersions(versionsData);
-
-          // Derive currentStepName from the last element's deliveryStepName
-          // or find the version whose productListDetailsId === detailsId
-          if (versionsData.length > 0) {
-            const currentVersion = versionsData.find(v => v.productListDetailsId === detailsId) || versionsData[versionsData.length - 1];
-            setCurrentStepName(currentVersion.deliveryStepName);
-          }
-        }
-      })
-      .catch(error => {
-        setError("Failed to load product list or versions");
-        setLoading(false);
-      });
-  }, [companyId, detailsId]);
-
   const handleStartOnboarding = () => {
     setEditing(true);
   };
 
   // We no longer need the buildStepsArray function since we're rendering the steps directly
 
-  const handleAdvanceStep = async () => {
+  const handleAdvance = async () => {
     setLoading(true);
+    setError(null);
     try {
-      const body = {
-        description,
-        itemUpdates: Object.entries(overrides)
-          .map(([id, qty]) => ({ id: +id, quantity: qty }))
-      };
-
-      // Use the same advance endpoint for all steps
-      const resp = await apiClient.post<ApiResponse<ProductListItemModel[]>>(
-          `/company/${companyId}/productList/${detailsId}/onboard`,
-          body
-      );
-
-      // resp.payload is the new list of items
-      setItems(resp.payload);
-
-      // Capture the newly returned productListDetailsId in a local variable
-      const newDetailsId = resp.payload && resp.payload.length > 0
-        ? resp.payload[0].productListDetailsId
-        : null;
-
-      // Update detailsId state if we have a new ID
-      if (newDetailsId) {
-        setDetailsId(newDetailsId);
-      }
-
-      // Fetch updated versions to get the new currentStepName
-      const versionsResp = await apiClient.get<ApiResponse<ProductListVersionModel[]>>(
-        `company/${companyId}/productList?shopId=${shopId}&date=${date}`
-      );
-
-      if (versionsResp && versionsResp.payload) {
-        const versionsData = Array.isArray(versionsResp.payload) ? versionsResp.payload : [];
-        setVersions(versionsData);
-
-        // Update currentStepName using the captured newDetailsId
-        if (versionsData.length > 0 && newDetailsId) {
-          const currentVersion = versionsData.find(v => v.productListDetailsId === newDetailsId) ||
-                                versionsData[versionsData.length - 1];
-          setCurrentStepName(currentVersion.deliveryStepName);
-        }
-      }
-
-      // reset overrides & description
+      const updated = await advanceStep(description, overrides);
+      setItems(updated);
+      setEditing(false);
       setOverrides({});
       setDescription("");
-      setEditing(false);
+      await refetch();
     } catch (e: any) {
       setError(e.message || "Failed to advance step");
     } finally {
       setLoading(false);
     }
   };
+
+  useEffect(() => {
+    if (!currentVersion?.productListDetailsId) return;
+
+    apiClient.get<ApiResponse<ProductListItemModel[]>>(
+        `company/${companyId}/productListItems/${currentVersion.productListDetailsId}`
+    ).then((res) => {
+      setItems(res.payload || []);
+    }).catch((e) => {
+      console.error("Failed to fetch items for current version", e);
+      setItems([]);
+    });
+  }, [currentVersion?.productListDetailsId]);
+
 
   // We no longer need these functions as we're using overrides state
   // and handleCompleteOnboarding for saving changes
@@ -420,16 +234,12 @@ const ProductListDetails = ({
           {/* Render step tags */}
           <div className="w-full overflow-x-auto mb-6">
             <div className="flex flex-wrap gap-2 mb-2">
-              {checkpointOrder.map((step, i) => {
-                // Determine the variant based on the step's position
-                let variant: BadgeProps["variant"] = "outline";
-
-                if (i < currentIndex)       variant = "secondary";
-                else if (i === currentIndex) variant = "default";
-
+              {workflowSteps.map((step) => {
+                const variant: BadgeProps["variant"] =
+                    step.id === currentStep?.id ? "default" : "outline";
                 return (
-                    <Badge key={step} variant={variant}>
-                      {step}
+                    <Badge key={step.id} variant={variant}>
+                      {step.customName}
                     </Badge>
                 );
               })}
@@ -549,43 +359,47 @@ const ProductListDetails = ({
           </div>
         </CardContent>
         <CardFooter className="flex flex-col space-y-4">
-          {/* Adjust action button based on currentStepName */}
-          {currentStepName === "FINAL" ? (
-            <Badge variant="outline" className="self-end">Delivered</Badge>
+          {isFinalStep ? (
+              <Badge variant="outline" className="self-end">Delivered</Badge>
           ) : !editing ? (
-            <Button
-              onClick={handleStartOnboarding}
-              className="self-end"
-            >
-              {buttonLabel}
-            </Button>
+              (() => {
+                const currentIndex = workflowSteps.findIndex(s => s.id === currentStep?.id);
+                const nextStep = currentIndex !== -1 ? workflowSteps[currentIndex + 1] : null;
+
+                let actionLabel = `Start ${nextStep?.customName || nextStep?.stepKey || ''}`;
+                try {
+                  const meta = nextStep?.metaJson ? JSON.parse(nextStep.metaJson) : {};
+                  console.log(meta);
+                  actionLabel = meta.actionLabel || actionLabel;
+                } catch {}
+
+                return (
+                    <Button onClick={() => setEditing(true)} className="self-end">
+                      {actionLabel}
+                    </Button>
+                );
+              })()
           ) : (
-            <>
-              <Textarea
-                placeholder="Notes for this onboarding step"
-                value={description}
-                onChange={e => setDescription(e.target.value)}
-                className="w-full"
-              />
-              <div className="flex justify-between w-full">
-                {/* Only show Add Product button during ON_BOARDING and OFF_LOADING */}
-                {(currentStepName === "ON_BOARDING" || currentStepName === "OFF_LOADING") && (
-                  <Button
-                    variant="outline"
-                    onClick={() => setIsAddProductDialogOpen(true)}
-                  >
-                    <Plus className="mr-2 h-4 w-4" /> Add Product
-                  </Button>
-                )}
-                <Button
-                  onClick={handleAdvanceStep}
-                  disabled={loading}
-                  className={currentStepName === "ON_BOARDING" || currentStepName === "OFF_LOADING" ? "" : "ml-auto"}
-                >
-                  {buttonLabel}
-                </Button>
-              </div>
-            </>
+              <>
+                <Textarea
+                    placeholder="Notes for this onboarding step"
+                    value={description}
+                    onChange={e => setDescription(e.target.value)}
+                    className="w-full"
+                />
+                <div className="flex justify-between w-full">
+                  {(() => {
+                    let label = `Complete ${currentStep?.customName || currentStep?.stepKey || ''}`;
+                    try {
+                      const meta = currentStep?.metaJson ? JSON.parse(currentStep.metaJson) : {};
+                      label = meta.actionLabel || label;
+                    } catch {}
+                    return (
+                        <Button onClick={handleAdvance}>{label}</Button>
+                    );
+                  })()}
+                </div>
+              </>
           )}
         </CardFooter>
       </Card>

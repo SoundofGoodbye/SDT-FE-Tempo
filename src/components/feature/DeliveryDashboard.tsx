@@ -12,7 +12,7 @@ import {
 import { format } from "date-fns";
 import { CalendarIcon, ChevronRight } from "lucide-react";
 import ProductListDetails from "./ProductListDetails";
-import apiClient, { ApiResponse } from "@/lib/api-client";
+import { apiClient, ApiResponse } from "@/lib/api/api-client";
 
 interface Shop {
   id: number;

@@ -6,6 +6,7 @@ import { usePathname, useSearchParams, useRouter } from "next/navigation";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Icons } from "@/components/ui/icons";
+import { logout, parseJwt } from "@/lib/api/auth-service";
 
 export function Navigation() {
   const pathname = usePathname();
@@ -16,21 +17,18 @@ export function Navigation() {
   const [username, setUsername] = useState("User");
 
   useEffect(() => {
-    // Check if user is authenticated
     const authToken = localStorage.getItem("authToken");
     const userId = localStorage.getItem("userId");
     setIsAuthenticated(!!authToken);
 
-    // In a real app, you would fetch the user's name from an API
-    // For now, we'll just use a default name
-    setUsername("Demo User");
+    if (authToken) {
+      const payload = parseJwt(authToken);
+      setUsername(payload?.email || payload?.sub || "User");
+    }
   }, []);
 
   const handleLogout = () => {
-    localStorage.removeItem("authToken");
-    localStorage.removeItem("userId");
-    localStorage.removeItem("companyId");
-    router.push("/");
+    logout(router);
   };
 
   return (

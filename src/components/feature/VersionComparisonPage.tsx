@@ -2,27 +2,14 @@
 
 import React, { useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
-import { Button } from "./ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "./ui/card";
-import VersionSelector from "./VersionSelector";
-import DiffTable, { DiffItem } from "./DiffTable";
+import { Button } from "../ui/button";
+import { Card, CardContent, CardHeader, CardTitle } from "../ui/card";
+import VersionSelector from "../ui/VersionSelector";
+import type { DiffItem } from "@/types/delivery";
 import { ArrowLeft, Download } from "lucide-react";
-import apiClient, { ApiResponse } from "@/lib/api-client";
-
-interface Version {
-  id: string;
-  stepType: string;
-  timestamp: string;
-  productListDetailsId: string;
-  stepDescription: string | null;
-}
-
-interface ProductItem {
-  productId: string;
-  name: string;
-  quantity: number;
-  notes: string | null;
-}
+import { apiClient, ApiResponse } from "@/lib/api/api-client";
+import type { ProductItemSummary, Version } from "@/types/delivery";
+import DiffTable from "@/components/feature/DiffTable";
 
 export default function VersionComparisonPage() {
   const params = useParams();
@@ -33,8 +20,8 @@ export default function VersionComparisonPage() {
   const [versions, setVersions] = useState<Version[]>([]);
   const [versionA, setVersionA] = useState<string>("");
   const [versionB, setVersionB] = useState<string>("");
-  const [itemsA, setItemsA] = useState<ProductItem[]>([]);
-  const [itemsB, setItemsB] = useState<ProductItem[]>([]);
+  const [itemsA, setItemsA] = useState<ProductItemSummary[]>([]);
+  const [itemsB, setItemsB] = useState<ProductItemSummary[]>([]);
   const [diffData, setDiffData] = useState<DiffItem[]>([]);
   const [isLoadingVersions, setIsLoadingVersions] = useState(true);
   const [isLoadingDetails, setIsLoadingDetails] = useState(false);
@@ -129,7 +116,7 @@ export default function VersionComparisonPage() {
   }, [versionA, versionB, selectedVersionA, selectedVersionB]);
 
   // Create diff data from both item lists
-  const createDiffData = (itemsA: ProductItem[], itemsB: ProductItem[]) => {
+  const createDiffData = (itemsA: ProductItemSummary[], itemsB: ProductItemSummary[]) => {
     // Create a map of all product IDs from both lists
     const productMap = new Map<
       string,

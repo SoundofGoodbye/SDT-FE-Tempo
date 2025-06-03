@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef, KeyboardEvent } from 'react';
 import { X } from 'lucide-react';
-import apiClient from "@/lib/api-client";
+import { apiClient } from "@/lib/api/api-client";
 import {cn} from "@/lib/utils";
 
 interface AutocompleteProps {

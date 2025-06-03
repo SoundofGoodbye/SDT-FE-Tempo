@@ -1,6 +1,6 @@
-import { TempoInit } from "@/components/tempo-init";
-import { Navigation } from "@/components/Navigation";
-import { AuthWrapper } from "@/components/AuthWrapper";
+import { TempoInit } from "@/lib/devtools/tempo-init";
+import { Navigation } from "@/components/ui/Navigation";
+import { AuthWrapper } from "@/components/ui/AuthWrapper";
 import type { Metadata } from "next";
 import { Inter } from "next/font/google";
 import Script from "next/script";
@@ -11,8 +11,12 @@ const inter = Inter({ subsets: ["latin"] });
 
 export const metadata: Metadata = {
   title: "SimpleDeliveryTracker",
-  description: "Track and manage your deliveries efficiently",
-  viewport: "width=device-width, initial-scale=1",
+  description: "Track and manage your deliveries efficiently"
+};
+
+export const viewport = {
+  width: "device-width",
+  initialScale: 1,
 };
 
 export default function RootLayout({

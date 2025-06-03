@@ -2,10 +2,13 @@
 
 import React, { useEffect, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
-import { Button } from "./ui/button";
-import { StepTimeline, DeliveryStep } from "./StepTimeline";
-import { VersionList, ProductItem } from "./VersionList";
-import apiClient, { ApiResponse } from "@/lib/api-client";
+import { Button } from "../ui/button";
+import { StepTimeline, DeliveryStep } from "../ui/StepTimeline";
+import { VersionList } from "./VersionList";
+import { ProductItem } from "@/types/delivery";
+import { convertDeliveryStepName } from "@/lib/utils/deliveryUtils";
+import { apiClient, ApiResponse } from "@/lib/api/api-client";
+
 
 
 interface DeliveryVersionsListPageProps {
@@ -49,20 +52,6 @@ export default function DeliveryVersionsListPage({ shopId, date, companyId }: De
         }>>>(
           `company/${companyId}/productList?shopId=${shopId}&date=${date}`
         );
-
-        // Function to convert API deliveryStepName to UI stepType format
-        const convertDeliveryStepName = (deliveryStepName: string): DeliveryStep['stepType'] => {
-          const mapping: Record<string, DeliveryStep['stepType']> = {
-            "INITIAL_REQUEST": "Initial Request",
-            "ON_BOARDING": "On boarding",
-            "ADD_STOCK": "Add Stock",
-            "REMOVE_STOCK": "Remove Stock",
-            "BROKEN_PRODUCT": "Broken Product",
-            "OFF_LOADING": "Off Loading",
-            "FINAL": "Complete Delivery"
-          };
-          return mapping[deliveryStepName] || deliveryStepName as DeliveryStep['stepType'];
-        };
 
         // Map the payload to DeliveryStep format
         const mappedData: DeliveryStep[] = response.payload.map(item => ({

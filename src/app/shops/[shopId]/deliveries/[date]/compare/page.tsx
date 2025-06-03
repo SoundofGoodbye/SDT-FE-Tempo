@@ -1,9 +1,9 @@
 "use client";
 
-import VersionComparisonPage from "@/components/VersionComparisonPage";
-import { DeliveryTabs } from "@/components/DeliveryTabs";
+import VersionComparisonPage from "@/components/feature/VersionComparisonPage";
+import { DeliveryTabs } from "@/components/feature/DeliveryTabs";
 import { useParams } from "next/navigation";
-import { useRequireAuth } from "@/lib/useRequireAuth";
+import { useRequireAuth } from "@/hooks/useRequireAuth";
 
 export default function CompareVersionsPage() {
   // Use the auth hook to protect this page

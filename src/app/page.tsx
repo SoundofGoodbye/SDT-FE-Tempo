@@ -4,11 +4,10 @@ import {
   Card,
   CardContent,
   CardDescription,
-  CardFooter,
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import LoginForm from "@/components/LoginForm";
+import LoginForm from "@/components/ui/LoginForm";
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 
