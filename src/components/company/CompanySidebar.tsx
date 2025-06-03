@@ -1,7 +1,7 @@
 "use client";
 import Link from 'next/link';
 import { useEffect, useState } from 'react';
-import { getUserRole } from '../../lib/authService';
+import { getUserRole } from "@/lib/api/auth-service";
 
 const CompanySidebar: React.FC = () => {
   const [role, setRole] = useState<string | null>(null);

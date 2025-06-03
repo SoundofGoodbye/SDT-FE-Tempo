@@ -12,7 +12,7 @@ import {
 } from "@/components/ui/tooltip";
 import { cn } from "@/lib/utils";
 import { Loader2 } from "lucide-react";
-import apiClient from "@/lib/api-client";
+import { apiClient, ApiResponse } from "@/lib/api/api-client";
 
 type DeliveryDate = {
   date: string;

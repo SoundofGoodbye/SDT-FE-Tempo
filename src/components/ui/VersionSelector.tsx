@@ -5,14 +5,9 @@ import {
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from "./ui/select";
-import { Label } from "./ui/label";
-
-interface Version {
-  id: string;
-  stepType: string;
-  timestamp: string;
-}
+} from "./select";
+import { Label } from "./label";
+import type { Version } from "@/types/delivery";
 
 interface VersionSelectorProps {
   label: string;

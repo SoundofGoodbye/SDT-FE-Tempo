@@ -1,7 +1,6 @@
 "use client";
 
 import React, { useEffect, useState } from 'react';
-import { getUserRole } from '../../lib/authService';
 
 interface Employee {
   id: number;

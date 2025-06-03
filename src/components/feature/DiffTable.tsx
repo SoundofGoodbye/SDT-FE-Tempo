@@ -6,17 +6,8 @@ import {
   TableHead,
   TableHeader,
   TableRow,
-} from "./ui/table";
-
-export interface DiffItem {
-  productId: string;
-  name: string;
-  qtyA: number | null;
-  qtyB: number | null;
-  delta: number;
-  notesA: string | null;
-  notesB: string | null;
-}
+} from "../ui/table";
+import type { DiffItem } from "@/types/delivery";
 
 interface DiffTableProps {
   diffData: DiffItem[];
