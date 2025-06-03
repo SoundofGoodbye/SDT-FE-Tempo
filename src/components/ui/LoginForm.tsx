@@ -9,11 +9,11 @@ import {
   CardDescription,
   CardContent,
   CardFooter,
-} from "./card";
-import { Input } from "./input";
-import { Label } from "./label";
-import { Button } from "./button";
-import { Alert, AlertDescription } from "./alert";
+} from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Button } from "@/components/ui/button";
+import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Loader2 } from "lucide-react";
 import { login } from "@/lib/api/auth-service";
 
@@ -34,16 +34,16 @@ const LoginForm = ({ onLoginSuccess = () => {} }: LoginFormProps) => {
     setIsLoading(true);
 
     try {
-      // Use the shared login function
       const data = await login({ email, password });
 
-      // Call the parent callback, if provided
+      localStorage.setItem("authToken", data.accessToken);
+      if (data.userId) localStorage.setItem("userId", data.userId);
+      if (data.companyId) localStorage.setItem("companyId", data.companyId.toString());
+
       onLoginSuccess(data.accessToken, data.companyId || 1);
       router.push("/dashboard");
-    } catch (err: any) {
-      setError(
-          err instanceof Error ? err.message : "Login failed. Please try again.",
-      );
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Login failed. Please try again.");
     } finally {
       setIsLoading(false);
     }
@@ -53,9 +53,7 @@ const LoginForm = ({ onLoginSuccess = () => {} }: LoginFormProps) => {
       <div className="flex justify-center items-center min-h-[350px] bg-background">
         <Card className="w-full max-w-md shadow-lg">
           <CardHeader className="space-y-1">
-            <CardTitle className="text-2xl font-bold text-center">
-              Login
-            </CardTitle>
+            <CardTitle className="text-2xl font-bold text-center">Login</CardTitle>
             <CardDescription className="text-center">
               Enter your credentials to access SimpleDeliveryTracker
             </CardDescription>
@@ -94,8 +92,7 @@ const LoginForm = ({ onLoginSuccess = () => {} }: LoginFormProps) => {
               <Button type="submit" className="w-full" disabled={isLoading}>
                 {isLoading ? (
                     <>
-                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                      Logging in...
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" /> Logging in...
                     </>
                 ) : (
                     "Login"
@@ -104,9 +101,7 @@ const LoginForm = ({ onLoginSuccess = () => {} }: LoginFormProps) => {
             </form>
           </CardContent>
           <CardFooter className="flex flex-col items-center">
-            <p className="text-sm text-muted-foreground mb-1">
-              Demo users available:
-            </p>
+            <p className="text-sm text-muted-foreground mb-1">Demo users available:</p>
             <ul className="text-xs text-muted-foreground">
               <li>admin@sdt.com / 123456</li>
               <li>manager@sdt.com / 123456</li>

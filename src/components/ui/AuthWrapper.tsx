@@ -1,4 +1,3 @@
-// src/components/ui/AuthWrapper.tsx
 "use client";
 
 import { useRouter } from "next/navigation";

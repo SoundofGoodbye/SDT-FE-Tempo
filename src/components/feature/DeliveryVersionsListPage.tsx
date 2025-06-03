@@ -213,7 +213,11 @@ export default function DeliveryVersionsListPage({ shopId, date, companyId }: De
       <div className="overflow-x-auto">
         <VersionList 
           items={productItems} 
-          isLoading={isLoadingItems} 
+          isLoading={isLoadingItems}
+          showExportAsCsvFile={selectedStepType == 'Complete Delivery'}
+          shopId={shopId}
+          date={date}
+          companyId={companyId}
         />
       </div>
     </div>
