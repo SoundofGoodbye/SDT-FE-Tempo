@@ -90,14 +90,18 @@ export default function VersionComparisonPage() {
           productId: item.itemId.toString(),
           name: item.itemName,
           quantity: item.quantity,
-          notes: selectedVersionA.stepDescription
+          notes: selectedVersionA.stepDescription,
+          unitPrice: item.unitPrice,
+          sellingPrice: item.sellingPrice
         }));
 
         const mappedItemsB = dataB.payload.map((item: any) => ({
           productId: item.itemId.toString(),
           name: item.itemName,
           quantity: item.quantity,
-          notes: selectedVersionB.stepDescription
+          notes: selectedVersionB.stepDescription,
+          unitPrice: item.unitPrice,
+          sellingPrice: item.sellingPrice
         }));
 
         setItemsA(mappedItemsA);
@@ -184,10 +188,10 @@ export default function VersionComparisonPage() {
     if (diffData.length === 0) return;
 
     const versionALabel = selectedVersionA
-      ? `${selectedVersionA.stepType} (${new Date(selectedVersionA.timestamp).toLocaleString()})`
+      ? `${selectedVersionA.stepType}`
       : "Version A";
     const versionBLabel = selectedVersionB
-      ? `${selectedVersionB.stepType} (${new Date(selectedVersionB.timestamp).toLocaleString()})`
+      ? `${selectedVersionB.stepType}`
       : "Version B";
 
     const headers = [
@@ -195,22 +199,41 @@ export default function VersionComparisonPage() {
       `Qty ${versionALabel}`,
       `Qty ${versionBLabel}`,
       "Delta",
+      `Unit Price (A)`,
+      `Unit Price (B)`,
+      `Selling Price (A)`,
+      `Selling Price (B)`,
       `Notes ${versionALabel}`,
-      `Notes ${versionBLabel}`,
+      `Notes ${versionBLabel}`
     ];
 
     const csvRows = [
       headers.join(","),
-      ...diffData.map((item) =>
-        [
+      ...diffData.map((item) => {
+        const itemA = itemsA.find(i => i.productId === item.productId);
+        const itemB = itemsB.find(i => i.productId === item.productId);
+
+        return [
           `"${item.name}"`,
           item.qtyA ?? "",
           item.qtyB ?? "",
           item.delta,
+          typeof itemA?.unitPrice === "number" && typeof itemA?.quantity === "number"
+              ? (itemA.unitPrice * itemA.quantity).toFixed(3)
+              : "",
+          typeof itemB?.unitPrice === "number" && typeof itemB?.quantity === "number"
+              ? (itemB.unitPrice * itemB.quantity).toFixed(3)
+              : "",
+          typeof itemA?.sellingPrice === "number" && typeof itemA?.quantity === "number"
+              ? (itemA.sellingPrice * itemA.quantity).toFixed(3)
+              : "",
+          typeof itemB?.sellingPrice === "number" && typeof itemB?.quantity === "number"
+              ? (itemB.sellingPrice * itemB.quantity).toFixed(3)
+              : "",
           `"${item.notesA || ""}"`,
-          `"${item.notesB || ""}"`,
-        ].join(","),
-      ),
+          `"${item.notesB || ""}"`
+        ].join(",");
+      })
     ];
 
     const csvContent = csvRows.join("\n");
@@ -281,6 +304,8 @@ export default function VersionComparisonPage() {
                 diffData={diffData}
                 versionALabel={selectedVersionA?.stepType || "A"}
                 versionBLabel={selectedVersionB?.stepType || "B"}
+                itemsA={itemsA}
+                itemsB={itemsB}
                 isLoading={isLoadingDetails}
               />
             </div>

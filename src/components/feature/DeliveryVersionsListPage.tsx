@@ -117,7 +117,8 @@ export default function DeliveryVersionsListPage({ shopId, date, companyId }: De
         unit: string;
         productListDetailsId: number;
         itemName: string;
-        price: number;
+        unitPrice: number;
+        sellingPrice: number;
       }>>>(
         `company/${companyId}/productListItems/${productListDetailsId}`
       );
@@ -127,9 +128,10 @@ export default function DeliveryVersionsListPage({ shopId, date, companyId }: De
         id: item.id.toString(),
         productName: item.itemName,
         qtyOrdered: item.quantity,
-        qtyActual: item.quantity, // Using the same value for qtyActual as we don't have this in the API response
-        notes: `${item.unit}`, // Using unit as notes
-        price: item.price,
+        qtyActual: item.quantity, // Using the same value for qtyActual as we don't have this in the API response FIXME:
+        notes: `${item.unit}`, // Using unit as notes FIXME: Wrong obviously
+        unitPrice: item.unitPrice,
+        sellingPrice: item.sellingPrice
       }));
 
       // Set the product items
