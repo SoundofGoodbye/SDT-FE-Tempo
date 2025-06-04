@@ -16,7 +16,10 @@ export interface UseDeliveryWorkflowResult {
     workflowSteps: WorkflowStep[];
     currentStep: WorkflowStep | null;
     isFinalStep: boolean;
-    advanceStep: (description: string, overrides: Record<number, number>) => Promise<ProductListItemModel[]>;
+    advanceStep: (
+        description: string,
+        itemUpdates: { id: number; quantity: number }[]
+    ) => Promise<ProductListItemModel[]>;
     loading: boolean;
     error: string | null;
     refetch: () => Promise<void>;
@@ -71,9 +74,6 @@ export function useDeliveryWorkflow(
         fetchData();
     }, [companyId, shopId, date]);
 
-
-
-
     const currentStep = workflowSteps.find(
         s => s.id === currentVersion?.workflowStepId
     ) || null;
@@ -82,16 +82,14 @@ export function useDeliveryWorkflow(
 
     const advanceStep = async (
         description: string,
-        overrides: Record<number, number>
+        itemUpdates: { id: number; quantity: number }[]
     ): Promise<ProductListItemModel[]> => {
         if (!currentVersion) throw new Error("No current version to advance");
 
-        const itemUpdates = Object.entries(overrides)
-            .filter(([_, qty]) => typeof qty === "number" && !isNaN(qty))
-            .map(([id, qty]) => ({ id: +id, quantity: qty }));
+        console.log("advanceStep called with:", { description, itemUpdates });
 
         const resp = await apiClient.post<ApiResponse<ProductListItemModel[]>>(
-            `/company/${companyId}/productList/${currentVersion.productListDetailsId}/onboard`,
+            `/company/${companyId}/productList/${currentVersion.productListDetailsId}/advanceStep`,
             { description, itemUpdates }
         );
 

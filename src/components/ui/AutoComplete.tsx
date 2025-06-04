@@ -1,101 +1,80 @@
 import React, { useState, useEffect, useRef, KeyboardEvent } from 'react';
 import { X } from 'lucide-react';
-import { apiClient } from "@/lib/api/api-client";
 import {cn} from "@/lib/utils";
 
 interface AutocompleteProps {
-    apiUrl?: string;
+    options: { id: number; name: string }[];
     placeholder?: string;
-    onSelect?: (value: string) => void;
+    onSelect?: (value: { id: number; name: string }) => void;
     maxResults?: number;
     minChars?: number;
     className?: string;
 }
 
 export const AutoComplete: React.FC<AutocompleteProps> = ({
-                                                       apiUrl,
-                                                       placeholder = 'Search products...',
-                                                       onSelect,
-                                                       maxResults = 100,
-                                                       minChars = 1,
-                                                       className = ''
-                                                   }) => {
+                                                              options,
+                                                              placeholder = 'Search products...',
+                                                              onSelect,
+                                                              maxResults = 100,
+                                                              minChars = 1,
+                                                              className = ''
+                                                          }) => {
     const [input, setInput] = useState<string>('');
     const [query, setQuery] = useState<string>('');
-    const [suggestions, setSuggestions] = useState<string[]>([]);
-    const [data, setData] = useState<string[]>([]);
+    const [filteredOptions, setFilteredOptions] = useState<{ id: number; name: string }[]>([]);
     const [isLoading, setIsLoading] = useState<boolean>(false);
     const [isOpen, setIsOpen] = useState<boolean>(false);
     const [selectedIndex, setSelectedIndex] = useState<number>(-1);
     const [error, setError] = useState<string>('');
+    const [isSelected, setIsSelected] = useState<boolean>(false); // Track if current value is a selected item
 
     const inputRef = useRef<HTMLInputElement>(null);
     const listRef = useRef<HTMLUListElement>(null);
 
-    // Mock API call - replace with your actual API endpoint
-    const fetchSuggestions = async (searchQuery: string): Promise<string[]> => {
-        try {
-            setIsLoading(true);
-            setError('');
-
-            await new Promise(resolve => setTimeout(resolve, 300));
-
-            // Filter results based on search query
-            const filtered = data.filter(item =>
-                item.toLowerCase().includes(searchQuery.toLowerCase())
-            );
-
-            return filtered.slice(0, maxResults);
-        } catch (err) {
-            setError(err instanceof Error ? err.message : 'Failed to fetch suggestions');
-            return [];
-        } finally {
-            setIsLoading(false);
-        }
-    };
-
     useEffect(() => {
-        if (apiUrl != undefined) {
-            apiClient.get<string[]>(apiUrl)
-                .then(response => {
-                    if (Array.isArray(response)) {
-                        setData(response);
-                    }
-                })
-                .catch(error => {
-                    console.error('Error fetching data:', error);
-                });
-        }
-    }, []);
+        const timeoutId = setTimeout(() => {
+            // Don't show suggestions if the current value is a selected item
+            if (isSelected) {
+                return;
+            }
 
-    useEffect(() => {
-        const timeoutId = setTimeout(async () => {
-            if (query != input && query.length >= minChars) {
-                const results = await fetchSuggestions(query);
-                setSuggestions(results);
-                setIsOpen(results.length > 0);
+            if (query.length >= minChars) {
+                const filtered = options.filter(o =>
+                    o.name.toLowerCase().includes(query.toLowerCase())
+                ).slice(0, maxResults);
+
+                setFilteredOptions(filtered);
+                setIsOpen(filtered.length > 0);
                 setSelectedIndex(-1);
             } else {
-                setSuggestions([]);
+                setFilteredOptions([]);
                 setIsOpen(false);
             }
-        }, 300); // Debounce API calls
+        }, 300);
 
         return () => clearTimeout(timeoutId);
-    }, [query, minChars]);
+    }, [query, options, minChars, maxResults, isSelected]);
 
     const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-        setQuery(e.target.value);
-        setInput('')
-        setIsOpen(false);
+        const newValue = e.target.value;
+        setQuery(newValue);
+        setInput('');
+        setIsSelected(false); // Mark that user is typing (not a selected value)
+
+        // Close dropdown if input is too short
+        if (newValue.length < minChars) {
+            setIsOpen(false);
+        }
     };
 
-    const handleSuggestionClick = (suggestion: string) => {
-        setQuery(suggestion);
-        setInput(suggestion);
+    const handleSuggestionClick = (option: { id: number; name: string }) => {
+        setQuery(option.name);
+        setInput(option.name);
         setIsOpen(false);
         setSelectedIndex(-1);
-        onSelect?.(suggestion);
+        setFilteredOptions([]);
+        setIsSelected(true); // Mark that current value is a selected item
+        onSelect?.(option);
     };
 
     const handleKeyDown = (e: KeyboardEvent<HTMLInputElement>) => {
@@ -105,7 +84,7 @@ export const AutoComplete: React.FC<AutocompleteProps> = ({
             case 'ArrowDown':
                 e.preventDefault();
                 setSelectedIndex(prev =>
-                    prev < suggestions.length - 1 ? prev + 1 : prev
+                    prev < filteredOptions.length - 1 ? prev + 1 : prev
                 );
                 break;
             case 'ArrowUp':
@@ -114,8 +93,8 @@ export const AutoComplete: React.FC<AutocompleteProps> = ({
                 break;
             case 'Enter':
                 e.preventDefault();
-                if (selectedIndex >= 0 && selectedIndex < suggestions.length) {
-                    handleSuggestionClick(suggestions[selectedIndex]);
+                if (selectedIndex >= 0 && selectedIndex < filteredOptions.length) {
+                    handleSuggestionClick(filteredOptions[selectedIndex]);
                 }
                 break;
             case 'Escape':
@@ -128,10 +107,23 @@ export const AutoComplete: React.FC<AutocompleteProps> = ({
 
     const clearInput = () => {
         setQuery('');
-        setSuggestions([]);
+        setInput('');
+        setFilteredOptions([]);
         setIsOpen(false);
         setSelectedIndex(-1);
+        setIsSelected(false);
         inputRef.current?.focus();
+    };
+
+    const handleFocus = () => {
+        // Only show dropdown if the current value is not a selected item
+        if (!isSelected && query.length >= minChars && options.length > 0) {
+            const filtered = options.filter(o =>
+                o.name.toLowerCase().includes(query.toLowerCase())
+            ).slice(0, maxResults);
+            setFilteredOptions(filtered);
+            setIsOpen(filtered.length > 0);
+        }
     };
 
     const highlightMatch = (text: string, query: string): JSX.Element => {
@@ -142,16 +134,16 @@ export const AutoComplete: React.FC<AutocompleteProps> = ({
 
         return (
             <span>
-        {parts.map((part, index) =>
-            regex.test(part) ? (
-                <mark key={index} className="bg-yellow-200 font-medium">
-                    {part}
-                </mark>
-            ) : (
-                <span key={index}>{part}</span>
-            )
-        )}
-      </span>
+                {parts.map((part, index) =>
+                    regex.test(part) ? (
+                        <mark key={index} className="bg-yellow-200 font-medium">
+                            {part}
+                        </mark>
+                    ) : (
+                        <span key={index}>{part}</span>
+                    )
+                )}
+            </span>
         );
     };
 
@@ -164,7 +156,7 @@ export const AutoComplete: React.FC<AutocompleteProps> = ({
                     value={query}
                     onChange={handleInputChange}
                     onKeyDown={handleKeyDown}
-                    onFocus={() => suggestions.length > 0 && setIsOpen(true)}
+                    onFocus={handleFocus}
                     placeholder={placeholder}
                     className={cn(
                         "flex h-9 w-full rounded-md border border-input bg-background px-3 py-1 text-sm shadow-sm transition-colors file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50",
@@ -195,27 +187,31 @@ export const AutoComplete: React.FC<AutocompleteProps> = ({
                         <div className="px-4 py-3 text-red-600 text-sm">
                             Error: {error}
                         </div>
-                    ) : suggestions.length > 0 ? (
+                    ) : filteredOptions.length > 0 ? (
                         <ul ref={listRef} className="py-1">
-                            {suggestions.map((suggestion, index) => (
+                            {filteredOptions.map((option, index) => (
                                 <li
-                                    key={index}
-                                    onClick={() => handleSuggestionClick(suggestion)}
+                                    key={option.id}
+                                    onClick={() => handleSuggestionClick(option)}
                                     className={`px-4 py-3 cursor-pointer transition-colors border-l-4 ${
                                         index === selectedIndex
-                                            ? 'bg-gray-50 text-gray-900'
+                                            ? 'bg-gray-50 text-gray-900 border-blue-500'
                                             : 'bg-white border-transparent hover:bg-gray-50'
                                     }`}
                                 >
                                     <div className="text-sm">
-                                        {highlightMatch(suggestion, query)}
+                                        {highlightMatch(option.name, query)}
                                     </div>
                                 </li>
                             ))}
                         </ul>
+                    ) : query.length >= minChars ? (
+                        <div className="px-4 py-3 text-gray-500 text-sm">
+                            No results found for "{query}"
+                        </div>
                     ) : (
                         <div className="px-4 py-3 text-gray-500 text-sm">
-                            No results found
+                            Type at least {minChars} character{minChars > 1 ? 's' : ''} to search
                         </div>
                     )}
                 </div>

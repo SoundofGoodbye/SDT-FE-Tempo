@@ -17,10 +17,7 @@ import { useDeliveryWorkflow } from "@/hooks/useDeliveryWorkflow";
 
 import {
   ProductListDetailsProps,
-  ProductListItemModel,
-  ProductListVersionModel,
-  StepName,
-  VersionModel
+  ProductListItemModel
 } from "@/types/delivery";
 import {AutoComplete} from "@/components/ui/AutoComplete";
 
@@ -45,6 +42,22 @@ const ProductListDetails = ({
   const [initialVersionId, setInitialVersionId] = useState<number | null>(null);
   const [loadingInitial, setLoadingInitial] = useState(false);
 
+  const [productItemOptions, setProductItemOptions] = useState<{ id: number; name: string }[]>([]);
+  const [productItemsLoaded, setProductItemsLoaded] = useState(false);
+
+  const handleOpenAddDialog = () => {
+    setIsAddProductDialogOpen(true);
+    if (!productItemsLoaded) {
+      apiClient.get<ApiResponse<{ id: number; itemName: string }[]>>(`/company/${companyId}/productItems`)
+          .then(res => {
+            const mappedOptions = (res || []).map(p => ({ id: p.id, name: p.itemName }));
+            setProductItemOptions(mappedOptions);
+            setProductItemsLoaded(true);
+          })
+          .catch(e => console.error("Failed to load product items", e));
+    }
+  };
+
   const {
     workflowSteps,
     currentStep,
@@ -60,28 +73,36 @@ const ProductListDetails = ({
   // Keep existing state for backward compatibility
   const [isAddProductDialogOpen, setIsAddProductDialogOpen] = useState(false);
   const [newProduct, setNewProduct] = useState<{
+    id?: number;
     name: string;
     quantity: number;
   }>({ name: "", quantity: 0 });
 
-  // No longer needed as we'll determine detailsId from the API
+  const [addedItems, setAddedItems] = useState<{ id: number; quantity: number }[]>([]);
 
-  const handleStartOnboarding = () => {
-    setEditing(true);
-  };
-
-  // We no longer need the buildStepsArray function since we're rendering the steps directly
-
+  // And update the handleAdvance function to include items marked for removal:
   const handleAdvance = async () => {
     setLoading(true);
     setError(null);
     try {
-      const updated = await advanceStep(description, overrides);
-      setItems(updated);
+      const itemUpdates = [
+        // Include all overrides (including quantity 0 for removals)
+        ...Object.entries(overrides).map(([id, qty]) => ({ id: +id, quantity: qty })),
+        // Include newly added items (but filter out any that were also marked for removal)
+        ...addedItems.filter(item => !overrides[item.id] || overrides[item.id] !== 0)
+            .map(item => ({ id: item.id, quantity: item.quantity }))
+      ];
+
+      await advanceStep(description, itemUpdates);
+
+      // After successful advance, refresh the items from the API response
+      await refetch();
+
+      // Clear local state
+      setAddedItems([]);
       setEditing(false);
       setOverrides({});
       setDescription("");
-      await refetch();
     } catch (e: any) {
       setError(e.message || "Failed to advance step");
     } finally {
@@ -91,6 +112,8 @@ const ProductListDetails = ({
 
   useEffect(() => {
     if (!currentVersion?.productListDetailsId) return;
+
+    setDetailsId(currentVersion.productListDetailsId);
 
     apiClient.get<ApiResponse<ProductListItemModel[]>>(
         `company/${companyId}/productListItems/${currentVersion.productListDetailsId}`
@@ -102,37 +125,18 @@ const ProductListDetails = ({
     });
   }, [currentVersion?.productListDetailsId]);
 
-
-  // We no longer need these functions as we're using overrides state
-  // and handleCompleteOnboarding for saving changes
-
   const handleRemoveProduct = (productId: number) => {
-    // Find the product to get its name for the description
-    const item = items.find(p => p.id === productId);
-    const itemName = item ? (item.itemName || item.name || "item") : "item";
+    // Add to overrides with quantity 0 for removal
+    setOverrides(prev => ({
+      ...prev,
+      [productId]: 0
+    }));
 
-    apiClient.delete<ApiResponse<ProductListItemModel[]>>(`company/${companyId}/productList/${detailsId}/productItems/${productId}?deliveryStep=REMOVE_STOCK&description=Removing ${encodeURIComponent(itemName)} from product list`)
-      .then(data => {
-        // Extract the updated product list from the response
-        const updatedItems = data?.payload || [];
-        if (Array.isArray(updatedItems)) {
-          setItems(updatedItems);
+    // Remove from visual display immediately
+    setItems(prev => prev.filter(item => item.id !== productId));
 
-          // Check if the first item has a new productListDetailsId
-          if (updatedItems.length > 0 && updatedItems[0].productListDetailsId) {
-            setDetailsId(updatedItems[0].productListDetailsId);
-          }
-        } else {
-          // Fallback to manual update if response doesn't contain expected data
-          setItems(items.filter(p => p.id !== productId));
-        }
-      })
-      .catch(error => {
-        // Handle error
-        const errorMsg = error?.message || "Failed to remove product";
-        setError(errorMsg);
-        console.error("Error removing product:", error);
-      });
+    // Also remove from addedItems if it was a newly added item
+    setAddedItems(prev => prev.filter(item => item.id !== productId));
   };
 
   const handleAddProduct = () => {
@@ -146,45 +150,24 @@ const ProductListDetails = ({
       return;
     }
 
-    apiClient.put<ApiResponse<ProductListItemModel[]>>(`company/${companyId}/productList/${detailsId}/productItems`, {
-        ...newProduct,
-        deliveryStep: "ADD_STOCK",
-        description: `Adding new product: ${newProduct.name}`
-      })
-      .then(data => {
-        // Extract the updated product list from the response
-        const updatedItems = data?.payload || [];
-        if (Array.isArray(updatedItems) && updatedItems.length > 0) {
-          // Update the entire product list with the response
-          setItems(updatedItems);
+    if (!newProduct.id) {
+      setError("Please select a valid product");
+      return;
+    }
 
-          // Check if the first item has a new productListDetailsId
-          if (updatedItems[0] && updatedItems[0].productListDetailsId) {
-            setDetailsId(updatedItems[0].productListDetailsId);
-          }
-
-          setNewProduct({ name: "", quantity: 0 });
-          setIsAddProductDialogOpen(false);
-        }
-        // else {
-        //   // Fallback: Extract single product from payload
-        //   const itemData = data?.payload || {};
-        //   if (itemData.id) {
-        //     setItems([...items, itemData]);
-        //
-        //     // Check if the item has a new productListDetailsId
-        //     if (itemData.productListDetailsId) {
-        //       setDetailsId(itemData.productListDetailsId);
-        //     }
-        //
-        //     setNewProduct({ name: "", quantity: 0 });
-        //     setIsAddProductDialogOpen(false);
-        //   } else {
-        //     setError("Failed to add product: Invalid response data");
-        //   }
-        // }
-      })
-      .catch(error => setError("Failed to add product"));
+    setAddedItems(prev => [...prev, { id: newProduct.id!, quantity: newProduct.quantity }]);
+    setItems(prev => [
+      ...prev,
+      {
+        id: newProduct.id!,
+        name: newProduct.name,
+        itemName: newProduct.name,
+        quantity: newProduct.quantity,
+        unit: '',
+      } as ProductListItemModel,
+    ]);
+    setNewProduct({ name: "", quantity: 0 });
+    setIsAddProductDialogOpen(false);
   };
 
   const getStatusBadge = () => {
@@ -357,6 +340,14 @@ const ProductListDetails = ({
               </TableBody>
             </Table>
           </div>
+          {editing && (
+              <div className="flex justify-end mt-4">
+                <Button onClick={handleOpenAddDialog} className="flex items-center space-x-2">
+                  <Plus className="h-4 w-4 mr-2" />
+                  <span>Add Product</span>
+                </Button>
+              </div>
+          )}
         </CardContent>
         <CardFooter className="flex flex-col space-y-4">
           {isFinalStep ? (
@@ -369,7 +360,6 @@ const ProductListDetails = ({
                 let actionLabel = `Start ${nextStep?.customName || nextStep?.stepKey || ''}`;
                 try {
                   const meta = nextStep?.metaJson ? JSON.parse(nextStep.metaJson) : {};
-                  console.log(meta);
                   actionLabel = meta.actionLabel || actionLabel;
                 } catch {}
 
@@ -418,9 +408,15 @@ const ProductListDetails = ({
                 Product Name
               </label>
               <AutoComplete
-                  apiUrl={`/company/${companyId}/productItems`}
+                  options={productItemOptions}
                   placeholder="Type to search products..."
-                  onSelect={(value) => setNewProduct({ ...newProduct, name: value })}
+                  onSelect={(selected) =>
+                      setNewProduct(prev => ({
+                        ...prev,
+                        name: selected.name,
+                        id: selected.id
+                      }))
+                  }
                   maxResults={100}
                   minChars={1}
                   className="col-span-3"

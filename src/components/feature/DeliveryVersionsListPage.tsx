@@ -214,7 +214,7 @@ export default function DeliveryVersionsListPage({ shopId, date, companyId }: De
         <VersionList 
           items={productItems} 
           isLoading={isLoadingItems}
-          showExportAsCsvFile={selectedStepType == 'Complete Delivery'}
+          showExportAsCsvFile={'Complete Delivery' == 'Complete Delivery'}
           shopId={shopId}
           date={date}
           companyId={companyId}
