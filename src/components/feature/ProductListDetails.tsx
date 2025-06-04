@@ -50,7 +50,7 @@ const ProductListDetails = ({
     if (!productItemsLoaded) {
       apiClient.get<ApiResponse<{ id: number; itemName: string }[]>>(`/company/${companyId}/productItems`)
           .then(res => {
-            const mappedOptions = (res || []).map(p => ({ id: p.id, name: p.itemName }));
+            const mappedOptions = (res.payload || []).map(p => ({ id: p.id, name: p.itemName }));
             setProductItemOptions(mappedOptions);
             setProductItemsLoaded(true);
           })
