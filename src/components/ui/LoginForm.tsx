@@ -14,6 +14,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { Alert, AlertDescription } from "@/components/ui/alert";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Loader2 } from "lucide-react";
 import { login } from "@/lib/api/auth-service";
 
@@ -24,6 +25,7 @@ interface LoginFormProps {
 const LoginForm = ({ onLoginSuccess = () => {} }: LoginFormProps) => {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [rememberMe, setRememberMe] = useState(true); // Default to true for shop use
   const [error, setError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const router = useRouter();
@@ -34,13 +36,13 @@ const LoginForm = ({ onLoginSuccess = () => {} }: LoginFormProps) => {
     setIsLoading(true);
 
     try {
-      const data = await login({ email, password });
+      const data = await login({
+        email,
+        password,
+        rememberMe
+      });
 
-      localStorage.setItem("authToken", data.accessToken);
-      if (data.userId) localStorage.setItem("userId", data.userId);
-      if (data.companyId) localStorage.setItem("companyId", data.companyId.toString());
-
-      onLoginSuccess(data.accessToken, data.companyId || 1);
+      onLoginSuccess(data.accessToken, data.companyId);
       router.push("/dashboard");
     } catch (err) {
       setError(err instanceof Error ? err.message : "Login failed. Please try again.");
@@ -50,7 +52,7 @@ const LoginForm = ({ onLoginSuccess = () => {} }: LoginFormProps) => {
   };
 
   return (
-      <div className="flex justify-center items-center min-h-[350px] bg-background">
+      <div className="flex justify-center items-center min-h-[450px] bg-background">
         <Card className="w-full max-w-md shadow-lg">
           <CardHeader className="space-y-1">
             <CardTitle className="text-2xl font-bold text-center">Login</CardTitle>
@@ -65,18 +67,21 @@ const LoginForm = ({ onLoginSuccess = () => {} }: LoginFormProps) => {
                     <AlertDescription>{error}</AlertDescription>
                   </Alert>
               )}
+
               <div className="space-y-2">
                 <Label htmlFor="email">Email</Label>
                 <Input
                     id="email"
-                    type="text"
+                    type="email"
                     placeholder="Enter your email"
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
                     required
                     disabled={isLoading}
+                    autoComplete="email"
                 />
               </div>
+
               <div className="space-y-2">
                 <Label htmlFor="password">Password</Label>
                 <Input
@@ -87,8 +92,25 @@ const LoginForm = ({ onLoginSuccess = () => {} }: LoginFormProps) => {
                     onChange={(e) => setPassword(e.target.value)}
                     required
                     disabled={isLoading}
+                    autoComplete="current-password"
                 />
               </div>
+
+              <div className="flex items-center space-x-2">
+                <Checkbox
+                    id="rememberMe"
+                    checked={rememberMe}
+                    onCheckedChange={(checked) => setRememberMe(checked as boolean)}
+                    disabled={isLoading}
+                />
+                <Label
+                    htmlFor="rememberMe"
+                    className="text-sm font-normal cursor-pointer"
+                >
+                  Keep me logged in for 1 year (recommended for shop terminals)
+                </Label>
+              </div>
+
               <Button type="submit" className="w-full" disabled={isLoading}>
                 {isLoading ? (
                     <>
