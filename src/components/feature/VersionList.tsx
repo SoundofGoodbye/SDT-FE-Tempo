@@ -173,7 +173,8 @@ export const VersionList: React.FC<VersionListProps> = ({
             <TableHead className="text-right">Qty Ordered</TableHead>
             <TableHead className="text-right">Qty Actual</TableHead>
             <TableHead>Notes</TableHead>
-            <TableHead>Price</TableHead>
+            <TableHead>Unit Price Total</TableHead>
+            <TableHead>Selling Price Total</TableHead>
           </TableRow>
         </TableHeader>
         <TableBody>
@@ -181,10 +182,11 @@ export const VersionList: React.FC<VersionListProps> = ({
             <TableRow key={item.id}>
               <TableCell className="font-medium">{index + 1}</TableCell>
               <TableCell className="font-medium">{item.productName}</TableCell>
-              <TableCell className="text-right">{item.qtyOrdered}</TableCell>
-              <TableCell className="text-right">{item.qtyActual}</TableCell>
-              <TableCell className="text-right">{item.notes}</TableCell>
-              <TableCell>{(item.price * item.qtyActual).toFixed(2)}</TableCell>
+              <TableCell className="text-center">{item.qtyOrdered}</TableCell>
+              <TableCell className="text-center">{item.qtyActual}</TableCell>
+              <TableCell className="text-center">{item.notes}</TableCell>
+              <TableCell className="text-center">{(item.unitPrice * item.qtyActual).toFixed(3)}</TableCell>
+              <TableCell className="text-center">{(item.sellingPrice * item.qtyActual).toFixed(3)}</TableCell>
             </TableRow>
           ))}
         </TableBody>

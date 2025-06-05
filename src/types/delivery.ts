@@ -46,6 +46,8 @@ export interface ProductItemSummary {
     name: string;
     quantity: number;
     notes: string | null;
+    unitPrice?: number;
+    sellingPrice?: number;
 }
 
 // A workflow step as returned by the new BE
@@ -64,7 +66,8 @@ export interface ProductItem {
     qtyOrdered: number;
     qtyActual: number;
     notes: string;
-    price: number;
+    unitPrice: number;
+    sellingPrice: number;
 }
 
 // Used for version lists and selection

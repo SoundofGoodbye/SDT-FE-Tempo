@@ -6,10 +6,41 @@ import { Button } from "../ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "../ui/card";
 import VersionSelector from "../ui/VersionSelector";
 import type { DiffItem } from "@/types/delivery";
-import { ArrowLeft, Download } from "lucide-react";
+import { ArrowLeft, Download, Settings } from "lucide-react";
 import { apiClient, ApiResponse } from "@/lib/api/api-client";
 import type { ProductItemSummary, Version } from "@/types/delivery";
 import DiffTable from "@/components/feature/DiffTable";
+import {
+  DropdownMenu,
+  DropdownMenuCheckboxItem,
+  DropdownMenuContent,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "../ui/dropdown-menu";
+
+// Define column configuration
+export interface ColumnConfig {
+  id: string;
+  label: string;
+  visible: boolean;
+  exportLabel?: string; // Optional label for CSV export
+}
+
+// Default column visibility configuration
+const DEFAULT_COLUMNS: ColumnConfig[] = [
+  { id: "row", label: "Row", visible: true },
+  { id: "productName", label: "Product Name", visible: true },
+  { id: "qtyA", label: "Qty A", visible: true },
+  { id: "qtyB", label: "Qty B", visible: true },
+  { id: "delta", label: "Delta", visible: true },
+  { id: "unitPriceA", label: "Unit Price Total (A)", visible: true },
+  { id: "unitPriceB", label: "Unit Price Total (B)", visible: true },
+  { id: "sellingPriceA", label: "Selling Price Total (A)", visible: false },
+  { id: "sellingPriceB", label: "Selling Price Total (B)", visible: false },
+  { id: "notesA", label: "Notes (A)", visible: false },
+  { id: "notesB", label: "Notes (B)", visible: false },
+];
 
 export default function VersionComparisonPage() {
   const params = useParams();
@@ -25,10 +56,47 @@ export default function VersionComparisonPage() {
   const [diffData, setDiffData] = useState<DiffItem[]>([]);
   const [isLoadingVersions, setIsLoadingVersions] = useState(true);
   const [isLoadingDetails, setIsLoadingDetails] = useState(false);
+  const [columns, setColumns] = useState<ColumnConfig[]>(DEFAULT_COLUMNS);
 
   // Get selected version objects
   const selectedVersionA = versions.find((v) => v.id === versionA);
   const selectedVersionB = versions.find((v) => v.id === versionB);
+
+  // Update column labels when versions are selected
+  useEffect(() => {
+    if (selectedVersionA || selectedVersionB) {
+      setColumns(prevColumns =>
+          prevColumns.map(col => {
+            switch (col.id) {
+              case "qtyA":
+                return { ...col, label: `Qty ${selectedVersionA?.stepType || "A"}` };
+              case "qtyB":
+                return { ...col, label: `Qty ${selectedVersionB?.stepType || "B"}` };
+              case "notesA":
+                return { ...col, label: `Notes (${selectedVersionA?.stepType || "A"})` };
+              case "notesB":
+                return { ...col, label: `Notes (${selectedVersionB?.stepType || "B"})` };
+              default:
+                return col;
+            }
+          })
+      );
+    }
+  }, [selectedVersionA, selectedVersionB]);
+
+  // Toggle column visibility
+  const toggleColumn = (columnId: string) => {
+    setColumns(prevColumns =>
+        prevColumns.map(col =>
+            col.id === columnId ? { ...col, visible: !col.visible } : col
+        )
+    );
+  };
+
+  // Reset columns to default
+  const resetColumns = () => {
+    setColumns(DEFAULT_COLUMNS.map(col => ({ ...col })));
+  };
 
   // Fetch versions metadata on mount
   useEffect(() => {
@@ -37,7 +105,7 @@ export default function VersionComparisonPage() {
         setIsLoadingVersions(true);
         const companyId = "1"; // Replace with actual company ID from context/auth
         const data = await apiClient.get<ApiResponse<any[]>>(
-          `company/${companyId}/productList?shopId=${shopId}&date=${date}`
+            `company/${companyId}/productList?shopId=${shopId}&date=${date}`
         );
         // Extract the payload from the API response
         if (data && data.payload && Array.isArray(data.payload)) {
@@ -78,10 +146,10 @@ export default function VersionComparisonPage() {
         // Fetch both version details in parallel
         const [dataA, dataB] = await Promise.all([
           apiClient.get<ApiResponse<any[]>>(
-            `company/${companyId}/productListItems/${selectedVersionA.productListDetailsId}`
+              `company/${companyId}/productListItems/${selectedVersionA.productListDetailsId}`
           ),
           apiClient.get<ApiResponse<any[]>>(
-            `company/${companyId}/productListItems/${selectedVersionB.productListDetailsId}`
+              `company/${companyId}/productListItems/${selectedVersionB.productListDetailsId}`
           ),
         ]);
 
@@ -90,14 +158,18 @@ export default function VersionComparisonPage() {
           productId: item.itemId.toString(),
           name: item.itemName,
           quantity: item.quantity,
-          notes: selectedVersionA.stepDescription
+          notes: selectedVersionA.stepDescription,
+          unitPrice: item.unitPrice,
+          sellingPrice: item.sellingPrice
         }));
 
         const mappedItemsB = dataB.payload.map((item: any) => ({
           productId: item.itemId.toString(),
           name: item.itemName,
           quantity: item.quantity,
-          notes: selectedVersionB.stepDescription
+          notes: selectedVersionB.stepDescription,
+          unitPrice: item.unitPrice,
+          sellingPrice: item.sellingPrice
         }));
 
         setItemsA(mappedItemsA);
@@ -119,8 +191,8 @@ export default function VersionComparisonPage() {
   const createDiffData = (itemsA: ProductItemSummary[], itemsB: ProductItemSummary[]) => {
     // Create a map of all product IDs from both lists
     const productMap = new Map<
-      string,
-      { name: string; inA: boolean; inB: boolean }
+        string,
+        { name: string; inA: boolean; inB: boolean }
     >();
 
     itemsA.forEach((item) => {
@@ -179,38 +251,123 @@ export default function VersionComparisonPage() {
     setDiffData(diff);
   };
 
-  // Export to CSV
+  // Export to CSV with only visible columns
   const exportToCSV = () => {
     if (diffData.length === 0) return;
 
     const versionALabel = selectedVersionA
-      ? `${selectedVersionA.stepType} (${new Date(selectedVersionA.timestamp).toLocaleString()})`
-      : "Version A";
+        ? `${selectedVersionA.stepType}`
+        : "Version A";
     const versionBLabel = selectedVersionB
-      ? `${selectedVersionB.stepType} (${new Date(selectedVersionB.timestamp).toLocaleString()})`
-      : "Version B";
+        ? `${selectedVersionB.stepType}`
+        : "Version B";
 
-    const headers = [
-      "Product Name",
-      `Qty ${versionALabel}`,
-      `Qty ${versionBLabel}`,
-      "Delta",
-      `Notes ${versionALabel}`,
-      `Notes ${versionBLabel}`,
-    ];
+    // Build headers based on visible columns
+    const headers: string[] = [];
+    const visibleColumns = columns.filter(col => col.visible);
+
+    visibleColumns.forEach(col => {
+      switch (col.id) {
+        case "row":
+          headers.push("Row");
+          break;
+        case "productName":
+          headers.push("Product Name");
+          break;
+        case "qtyA":
+          headers.push(`Qty ${versionALabel}`);
+          break;
+        case "qtyB":
+          headers.push(`Qty ${versionBLabel}`);
+          break;
+        case "delta":
+          headers.push("Delta");
+          break;
+        case "unitPriceA":
+          headers.push(`Unit Price Total (${versionALabel})`);
+          break;
+        case "unitPriceB":
+          headers.push(`Unit Price Total (${versionBLabel})`);
+          break;
+        case "sellingPriceA":
+          headers.push(`Selling Price Total (${versionALabel})`);
+          break;
+        case "sellingPriceB":
+          headers.push(`Selling Price Total (${versionBLabel})`);
+          break;
+        case "notesA":
+          headers.push(`Notes (${versionALabel})`);
+          break;
+        case "notesB":
+          headers.push(`Notes (${versionBLabel})`);
+          break;
+      }
+    });
 
     const csvRows = [
       headers.join(","),
-      ...diffData.map((item) =>
-        [
-          `"${item.name}"`,
-          item.qtyA ?? "",
-          item.qtyB ?? "",
-          item.delta,
-          `"${item.notesA || ""}"`,
-          `"${item.notesB || ""}"`,
-        ].join(","),
-      ),
+      ...diffData.map((item, index) => {
+        const itemA = itemsA.find(i => i.productId === item.productId);
+        const itemB = itemsB.find(i => i.productId === item.productId);
+
+        const rowData: string[] = [];
+
+        visibleColumns.forEach(col => {
+          switch (col.id) {
+            case "row":
+              rowData.push((index + 1).toString());
+              break;
+            case "productName":
+              rowData.push(`"${item.name}"`);
+              break;
+            case "qtyA":
+              rowData.push(item.qtyA?.toString() ?? "");
+              break;
+            case "qtyB":
+              rowData.push(item.qtyB?.toString() ?? "");
+              break;
+            case "delta":
+              rowData.push(item.delta.toString());
+              break;
+            case "unitPriceA":
+              rowData.push(
+                  typeof itemA?.unitPrice === "number" && typeof itemA?.quantity === "number"
+                      ? (itemA.unitPrice * itemA.quantity).toFixed(3)
+                      : ""
+              );
+              break;
+            case "unitPriceB":
+              rowData.push(
+                  typeof itemB?.unitPrice === "number" && typeof itemB?.quantity === "number"
+                      ? (itemB.unitPrice * itemB.quantity).toFixed(3)
+                      : ""
+              );
+              break;
+            case "sellingPriceA":
+              rowData.push(
+                  typeof itemA?.sellingPrice === "number" && typeof itemA?.quantity === "number"
+                      ? (itemA.sellingPrice * itemA.quantity).toFixed(3)
+                      : ""
+              );
+              break;
+            case "sellingPriceB":
+              rowData.push(
+                  typeof itemB?.sellingPrice === "number" && typeof itemB?.quantity === "number"
+                      ? (itemB.sellingPrice * itemB.quantity).toFixed(3)
+                      : ""
+              );
+              break;
+            case "notesA":
+              rowData.push(`"${item.notesA || ""}"`);
+              break;
+            case "notesB":
+              rowData.push(`"${item.notesB || ""}"`);
+              break;
+          }
+        });
+
+        return rowData.join(",");
+      })
     ];
 
     const csvContent = csvRows.join("\n");
@@ -232,69 +389,103 @@ export default function VersionComparisonPage() {
   };
 
   return (
-    <div className="container mx-auto py-6 space-y-6">
-      <div className="flex items-center justify-between">
-        <Button
-          variant="ghost"
-          onClick={goBackToVersions}
-          className="flex items-center gap-2"
-        >
-          <ArrowLeft size={16} />
-          Back to Versions
-        </Button>
+      <div className="container mx-auto py-6 space-y-6">
+        <div className="flex items-center justify-between">
+          <Button
+              variant="ghost"
+              onClick={goBackToVersions}
+              className="flex items-center gap-2"
+          >
+            <ArrowLeft size={16} />
+            Back to Versions
+          </Button>
 
-        <Button
-          onClick={exportToCSV}
-          disabled={diffData.length === 0 || isLoadingDetails}
-          className="flex items-center gap-2"
-        >
-          <Download size={16} />
-          Export to CSV
-        </Button>
-      </div>
+          <div className="flex items-center gap-2">
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="outline" size="sm">
+                  <Settings className="h-4 w-4 mr-2" />
+                  Columns
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="w-56">
+                <DropdownMenuLabel>Toggle Columns</DropdownMenuLabel>
+                <DropdownMenuSeparator />
+                {columns.map((column) => (
+                    <DropdownMenuCheckboxItem
+                        key={column.id}
+                        checked={column.visible}
+                        onCheckedChange={() => toggleColumn(column.id)}
+                    >
+                      {column.label}
+                    </DropdownMenuCheckboxItem>
+                ))}
+                <DropdownMenuSeparator />
+                <DropdownMenuCheckboxItem
+                    onSelect={resetColumns}
+                    className="text-sm"
+                >
+                  Reset to Default
+                </DropdownMenuCheckboxItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
 
-      <Card>
-        <CardHeader>
-          <CardTitle>Compare Delivery Versions</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="grid grid-cols-1 sm:grid-cols-1 md:grid-cols-2 gap-6 mb-8">
-            <VersionSelector
-              label="Compare A"
-              versions={versions}
-              value={versionA}
-              onChange={setVersionA}
-              disabled={isLoadingVersions}
-            />
-            <VersionSelector
-              label="Compare B"
-              versions={versions}
-              value={versionB}
-              onChange={setVersionB}
-              disabled={isLoadingVersions}
-            />
+            <Button
+                onClick={exportToCSV}
+                disabled={diffData.length === 0 || isLoadingDetails}
+                className="flex items-center gap-2"
+            >
+              <Download size={16} />
+              Export to CSV
+            </Button>
           </div>
+        </div>
 
-          {versionA && versionB ? (
-            <div className="overflow-x-auto">
-              <DiffTable
-                diffData={diffData}
-                versionALabel={selectedVersionA?.stepType || "A"}
-                versionBLabel={selectedVersionB?.stepType || "B"}
-                isLoading={isLoadingDetails}
+        <Card>
+          <CardHeader>
+            <CardTitle>Compare Delivery Versions</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="grid grid-cols-1 sm:grid-cols-1 md:grid-cols-2 gap-6 mb-8">
+              <VersionSelector
+                  label="Compare A"
+                  versions={versions}
+                  value={versionA}
+                  onChange={setVersionA}
+                  disabled={isLoadingVersions}
+              />
+              <VersionSelector
+                  label="Compare B"
+                  versions={versions}
+                  value={versionB}
+                  onChange={setVersionB}
+                  disabled={isLoadingVersions}
               />
             </div>
-          ) : (
-            <div className="flex justify-center items-center h-64 bg-muted/20 rounded-md">
-              <p className="text-muted-foreground">
-                {isLoadingVersions
-                  ? "Loading versions..."
-                  : "Select two versions to compare"}
-              </p>
-            </div>
-          )}
-        </CardContent>
-      </Card>
-    </div>
+
+            {versionA && versionB ? (
+                <div className="overflow-x-auto">
+                  <DiffTable
+                      diffData={diffData}
+                      versionALabel={selectedVersionA?.stepType || "A"}
+                      versionBLabel={selectedVersionB?.stepType || "B"}
+                      itemsA={itemsA}
+                      itemsB={itemsB}
+                      isLoading={isLoadingDetails}
+                      columns={columns}
+                  />
+                </div>
+            ) : (
+                <div className="flex justify-center items-center h-64 bg-muted/20 rounded-md">
+                  <p className="text-muted-foreground">
+                    {isLoadingVersions
+                        ? "Loading versions..."
+                        : "Select two versions to compare"}
+                  </p>
+                </div>
+            )}
+          </CardContent>
+        </Card>
+      </div>
   );
 }

@@ -12,7 +12,7 @@ export default function VersionsPage() {
   const params = useParams();
   const shopId = params.shopId as string;
   const date = params.date as string;
-  const companyId = "1"; // Hard-coded as per requirements
+  const companyId = "1"; // Hard-coded as per requirements //FIXME: Use real data
 
   return (
     <div className="container mx-auto py-6">
