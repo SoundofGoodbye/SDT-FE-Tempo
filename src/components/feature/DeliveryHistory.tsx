@@ -108,6 +108,15 @@ export default function DeliveryHistory({
     });
   };
 
+  // Convert timestamp to YYYY-MM-DD format
+  const formatDateForUrl = (dateValue: string | number) => {
+    const date = new Date(Number(dateValue));
+    const year = date.getFullYear();
+    const month = String(date.getMonth() + 1).padStart(2, '0');
+    const day = String(date.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
+  };
+
   const handleImportSuccess = () => {
     // Refresh the history data
     fetchHistoryData();
@@ -180,7 +189,7 @@ export default function DeliveryHistory({
                                 <Button
                                     size="sm"
                                     onClick={() =>
-                                        router.push(`/shops/${record.shopId}/deliveries/${record.date}/versions`)
+                                        router.push(`/shops/${record.shopId}/deliveries/${formatDateForUrl(record.date)}/versions`)
                                     }
                                 >
                                   View Details
@@ -189,7 +198,7 @@ export default function DeliveryHistory({
                                     size="sm"
                                     variant="outline"
                                     onClick={() =>
-                                        router.push(`/shops/${record.shopId}/deliveries/${record.date}/compare`)
+                                        router.push(`/shops/${record.shopId}/deliveries/${formatDateForUrl(record.date)}/compare`)
                                     }
                                 >
                                   Compare
