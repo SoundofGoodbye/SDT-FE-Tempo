@@ -1,75 +1,38 @@
-// Unified API Client with Integrated Auth Utilities
 import { useRouter } from "next/navigation";
 
-export interface ApiResponse<T> {
-  message: string;
-  count?: number;
-  payload: T;
+export interface AuthResponse {
+  accessToken: string;
+  refreshToken: string;
+  tokenType: string;
+  expiresIn: number;
+  userId: number;
+  email: string;
+  roles: string[];
+  companyId: number;
+  shopId?: number;
 }
 
-export interface RequestOptions {
-  responseType?: 'json' | 'blob' | 'text';
-  headers?: Record<string, string>;
+export interface LoginRequest {
+  email: string;
+  password: string;
+  rememberMe?: boolean;
 }
 
-export interface BlobResponse {
-  data: Blob;
-  headers: Record<string, string>;
+export interface RefreshResponse {
+  accessToken: string;
+  refreshToken: string;
+  tokenType: string;
+  expiresIn: number;
+  userId: number;
+  email: string;
+  roles: string[];
+  companyId: number;
+  shopId?: number;
 }
 
 export const getApiBaseUrl = (): string => {
   return process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:8081";
 };
-
-export const isTokenExpired = (token: string): boolean => {
-  try {
-    const base64Url = token.split('.')[1];
-    const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
-    const payload = JSON.parse(atob(base64));
-    if (!payload.exp) return false;
-    return Date.now() >= payload.exp * 1000;
-  } catch {
-    return true;
-  }
-};
-
-export const isAuthenticated = (): boolean => {
-  if (typeof window === 'undefined') return false;
-  const token = localStorage.getItem("authToken");
-  if (!token) return false;
-  return !isTokenExpired(token);
-};
-
-export const logout = (router?: ReturnType<typeof useRouter>): void => {
-  localStorage.removeItem("authToken");
-  localStorage.removeItem("userId");
-  localStorage.removeItem("companyId");
-  if (router) router.push("/");
-};
-
-export async function login({
-                              email,
-                              password,
-                            }: {
-  email: string;
-  password: string;
-}): Promise<{
-  accessToken: string;
-  companyId: number;
-  userId?: string;
-}> {
-  const response = await fetch(`${getApiBaseUrl()}/auth/login`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ email, password }),
-  });
-
-  if (!response.ok) {
-    throw new Error("Authentication failed");
-  }
-
-  return await response.json();
-}
 
 export const parseJwt = (token: string) => {
   try {
@@ -83,73 +46,205 @@ export const parseJwt = (token: string) => {
   }
 };
 
-function getAuthHeaders(): HeadersInit {
-  const token = typeof window !== "undefined" ? localStorage.getItem("authToken") : null;
-  if (!token || isTokenExpired(token)) {
-    logout();
-    return {};
+export const isTokenExpired = (token: string): boolean => {
+  try {
+    const payload = parseJwt(token);
+    if (!payload || !payload.exp) return true;
+    // Add 30 second buffer to account for clock skew
+    return Date.now() >= (payload.exp * 1000 - 30000);
+  } catch {
+    return true;
   }
-  return { Authorization: `Bearer ${token}` };
-}
+};
 
-async function request<T>(
-    endpoint: string,
-    options: RequestInit = {},
-    extra?: RequestOptions
-): Promise<T> {
-  const url = `${getApiBaseUrl()}${endpoint.startsWith("/") ? endpoint : `/${endpoint}`}`;
-  const headers: HeadersInit = {
-    "Content-Type": "application/json",
-    ...(options.headers || {}),
-    ...getAuthHeaders(),
-    ...(extra?.headers || {})
-  };
+export const getStoredTokens = () => {
+  if (typeof window === 'undefined') return null;
 
-  const response = await fetch(url, { ...options, headers });
+  const accessToken = localStorage.getItem("accessToken");
+  const refreshToken = localStorage.getItem("refreshToken");
 
-  if (response.status === 401) {
-    logout();
-    throw new Error("Unauthorized – you have been logged out.");
+  return { accessToken, refreshToken };
+};
+
+export const getUserRoles = (): string[] => {
+  if (typeof window === 'undefined') return [];
+
+  const rolesStr = localStorage.getItem("userRoles");
+  if (!rolesStr) return [];
+
+  try {
+    return JSON.parse(rolesStr);
+  } catch {
+    return [];
   }
+};
+
+export const hasRole = (role: string): boolean => {
+  const roles = getUserRoles();
+  return roles.includes(role);
+};
+
+export const getShopId = (): number | null => {
+  if (typeof window === 'undefined') return null;
+
+  const shopId = localStorage.getItem("shopId");
+  return shopId ? parseInt(shopId) : null;
+};
+
+export const isAuthenticated = (): boolean => {
+  if (typeof window === 'undefined') return false;
+
+  const { accessToken, refreshToken } = getStoredTokens() || {};
+
+  // If we have a valid access token, we're authenticated
+  if (accessToken && !isTokenExpired(accessToken)) {
+    return true;
+  }
+
+  // If we have a refresh token, we can potentially refresh
+  // This will be handled by the auth interceptor
+  return !!refreshToken;
+};
+
+export const storeAuthData = (authData: AuthResponse) => {
+  localStorage.setItem("accessToken", authData.accessToken);
+  localStorage.setItem("refreshToken", authData.refreshToken);
+  localStorage.setItem("userId", authData.userId.toString());
+  localStorage.setItem("userEmail", authData.email);
+  localStorage.setItem("userRoles", JSON.stringify(authData.roles));
+  localStorage.setItem("companyId", authData.companyId.toString());
+
+  if (authData.shopId) {
+    localStorage.setItem("shopId", authData.shopId.toString());
+  }
+
+  // For backward compatibility
+  localStorage.setItem("authToken", authData.accessToken);
+};
+
+export const clearAuthData = () => {
+  localStorage.removeItem("accessToken");
+  localStorage.removeItem("refreshToken");
+  localStorage.removeItem("userId");
+  localStorage.removeItem("userEmail");
+  localStorage.removeItem("userRoles");
+  localStorage.removeItem("companyId");
+  localStorage.removeItem("shopId");
+  localStorage.removeItem("authToken"); // backward compatibility
+};
+
+export async function login(request: LoginRequest): Promise<AuthResponse> {
+  const response = await fetch(`${getApiBaseUrl()}/auth/login`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      email: request.email,
+      password: request.password,
+      rememberMe: request.rememberMe || false
+    }),
+  });
 
   if (!response.ok) {
-    throw new Error(`API request failed: ${response.statusText}`);
+    const errorData = await response.json().catch(() => null);
+    throw new Error(errorData?.message || "Authentication failed");
   }
 
-  const type = extra?.responseType || 'json';
-  const contentType = response.headers.get('content-type') || '';
+  const authData = await response.json();
+  storeAuthData(authData);
 
-  if (type === 'blob') {
-    const blob = await response.blob();
-    const headerMap: Record<string, string> = {};
-    response.headers.forEach((value, key) => (headerMap[key] = value));
-    return { data: blob, headers: headerMap } as T;
-  }
-
-  if (type === 'text') {
-    return (await response.text()) as T;
-  }
-
-  if (contentType.includes('application/json')) {
-    return await response.json();
-  }
-
-  return (await response.text()) as T;
+  return authData;
 }
 
-export const apiClient = {
-  get: <T>(endpoint: string, options?: RequestOptions) =>
-      request<T>(endpoint, { method: "GET" }, options),
+export async function refreshAccessToken(): Promise<string | null> {
+  const { refreshToken } = getStoredTokens() || {};
 
-  post: <T>(endpoint: string, data?: any, options?: RequestOptions) =>
-      request<T>(endpoint, { method: "POST", body: data ? JSON.stringify(data) : undefined }, options),
+  if (!refreshToken) {
+    console.error("No refresh token available");
+    return null;
+  }
 
-  put: <T>(endpoint: string, data?: any, options?: RequestOptions) =>
-      request<T>(endpoint, { method: "PUT", body: data ? JSON.stringify(data) : undefined }, options),
+  try {
+    const response = await fetch(`${getApiBaseUrl()}/auth/refresh`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ refreshToken }),
+    });
 
-  delete: <T>(endpoint: string, options?: RequestOptions) =>
-      request<T>(endpoint, { method: "DELETE" }, options),
+    if (!response.ok) {
+      console.error("Failed to refresh token:", response.status);
+      return null;
+    }
 
-  logout,
-  isTokenExpired
+    const data: RefreshResponse = await response.json();
+
+    // Update stored tokens
+    localStorage.setItem("accessToken", data.accessToken);
+    localStorage.setItem("authToken", data.accessToken); // backward compatibility
+
+    // Update other data if provided
+    if (data.userId) localStorage.setItem("userId", data.userId.toString());
+    if (data.email) localStorage.setItem("userEmail", data.email);
+    if (data.roles) localStorage.setItem("userRoles", JSON.stringify(data.roles));
+    if (data.companyId) localStorage.setItem("companyId", data.companyId.toString());
+    if (data.shopId) localStorage.setItem("shopId", data.shopId.toString());
+
+    return data.accessToken;
+  } catch (error) {
+    console.error("Error refreshing token:", error);
+    return null;
+  }
+}
+
+export const logout = async (router?: ReturnType<typeof useRouter>): Promise<void> => {
+  const { refreshToken } = getStoredTokens() || {};
+
+  // Attempt to logout on the server (revoke refresh token)
+  if (refreshToken) {
+    try {
+      await fetch(`${getApiBaseUrl()}/auth/logout`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ refreshToken }),
+      });
+    } catch (error) {
+      console.error("Error during server logout:", error);
+    }
+  }
+
+  // Clear local storage
+  clearAuthData();
+
+  // Redirect to login
+  if (router) {
+    router.push("/");
+  } else if (typeof window !== 'undefined') {
+    window.location.href = "/";
+  }
+};
+
+export const logoutAllSessions = async (router?: ReturnType<typeof useRouter>): Promise<void> => {
+  const { accessToken } = getStoredTokens() || {};
+
+  if (accessToken) {
+    try {
+      await fetch(`${getApiBaseUrl()}/auth/logout-all`, {
+        method: "POST",
+        headers: {
+          "Authorization": `Bearer ${accessToken}`,
+          "Content-Type": "application/json"
+        },
+      });
+    } catch (error) {
+      console.error("Error during logout all sessions:", error);
+    }
+  }
+
+  // Clear local storage and redirect
+  clearAuthData();
+
+  if (router) {
+    router.push("/");
+  } else if (typeof window !== 'undefined') {
+    window.location.href = "/";
+  }
 };

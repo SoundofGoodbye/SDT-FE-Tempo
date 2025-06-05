@@ -43,6 +43,7 @@ export const VersionList: React.FC<VersionListProps> = ({
         }
       );
 
+      console.log("RESPONSE: ", response);
       // Create blob from response
       const blob = new Blob([response.data], {
         type: 'text/csv;charset=utf-8'
