@@ -1,5 +1,11 @@
 "use client";
 
+import {
+  Drawer, DrawerContent, DrawerHeader, DrawerTitle, DrawerDescription,
+  DrawerFooter, DrawerClose
+} from "@/components/ui/drawer";
+import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
+import { Euro, TrendingUp, Package, Calculator, Menu, X } from "lucide-react";
 import React, { useEffect, useState } from "react";
 import { useParams } from "next/navigation";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -12,14 +18,8 @@ import {
   Tooltip, TooltipContent, TooltipProvider, TooltipTrigger
 } from "@/components/ui/tooltip";
 import { DeliveryTabs } from "@/components/feature/DeliveryTabs";
-import { apiClient, ApiResponse } from "@/lib/api/api-client";
-import {
-  Drawer, DrawerContent, DrawerHeader, DrawerTitle, DrawerDescription,
-  DrawerFooter, DrawerClose
-} from "@/components/ui/drawer";
-import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
-import { Euro, TrendingUp, Package, Calculator } from "lucide-react";
 import { DeliverySummaryCards } from "@/components/feature/delivery/DeliverySummaryCards";
+import { apiClient, ApiResponse } from "@/lib/api/api-client";
 import {
   calculateMetricsByUnit,
   calculateSnapshotFinancials,
@@ -30,6 +30,16 @@ import {
   FinancialMetrics,
   FinancialMetricsByUnit
 } from "@/lib/utils/delivery-calculations";
+import {
+  FilterOptions,
+  SortOptions,
+  ViewMode,
+  applyFilters,
+  applySorting,
+  generateInsights,
+  hasProductChanged
+} from "@/lib/utils/delivery-filters";
+import {Button} from "@/components/ui/button";
 
 interface DeliveryMatrixSnapshot {
   stepKey: string;
@@ -49,11 +59,32 @@ export default function DeliveryMatrixPage() {
   const [snapshots, setSnapshots] = useState<DeliveryMatrixSnapshot[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [showOnlyChanged, setShowOnlyChanged] = useState(false);
   const [selectedItemId, setSelectedItemId] = useState<number | null>(null);
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [displayMode, setDisplayMode] = useState<DisplayMode>("quantity");
   const [showFinancialSummary, setShowFinancialSummary] = useState(false);
+  const [showSummaryCards, setShowSummaryCards] = useState(true);
+  const [sidebarOpen, setSidebarOpen] = useState(false);
+
+  // Filter and sort state
+  const [filters, setFilters] = useState<FilterOptions>({
+    showOnlyChanged: false,
+    minChangePercent: undefined,
+    showProfitNegativeOnly: false,
+    searchQuery: "",
+    selectedProductIds: [],
+  });
+
+  const [sortOptions, setSortOptions] = useState<SortOptions>({
+    sortBy: "none",
+    sortOrder: "asc",
+  });
+
+  const [viewMode, setViewMode] = useState<ViewMode>({
+    type: "all-steps",
+    selectedStep: 0,
+    compareSteps: [0, 1],
+  });
 
   useEffect(() => {
     const fetchMatrixData = async () => {
@@ -92,16 +123,47 @@ export default function DeliveryMatrixPage() {
     return calculateMetricsByUnit(first.items, last.items, allItemIds, displayMode);
   }, [snapshots, allItemIds, displayMode]);
 
-  const hasProductChanged = React.useCallback((itemId: number) => {
-    const quantities = snapshots.map(s => s.items.find(i => i.itemId === itemId)?.quantity ?? null)
-        .filter(q => q !== null);
-    return quantities.length > 1 && !quantities.every(q => q === quantities[0]);
-  }, [snapshots]);
+  // Apply filters and sorting
+  const filteredItemIds = React.useMemo(() => {
+    const filtered = applyFilters(
+        allItemIds,
+        snapshots,
+        filters,
+        itemsMap,
+        displayMode
+    );
+    return applySorting(
+        filtered,
+        snapshots,
+        sortOptions,
+        itemsMap,
+        displayMode
+    );
+  }, [allItemIds, snapshots, filters, sortOptions, itemsMap, displayMode]);
 
-  const filteredItemIds = React.useMemo(() =>
-          showOnlyChanged ? allItemIds.filter(hasProductChanged) : allItemIds,
-      [allItemIds, hasProductChanged, showOnlyChanged]
+  // Generate insights
+  const insights = React.useMemo(() =>
+          generateInsights(snapshots, itemsMap, displayMode),
+      [snapshots, itemsMap, displayMode]
   );
+
+  // Get visible snapshots based on view mode
+  const visibleSnapshots = React.useMemo(() => {
+    switch (viewMode.type) {
+      case "single-step":
+        return viewMode.selectedStep !== undefined
+            ? [snapshots[viewMode.selectedStep]].filter(Boolean)
+            : snapshots;
+      case "compare-steps":
+        return viewMode.compareSteps
+            ? [snapshots[viewMode.compareSteps[0]], snapshots[viewMode.compareSteps[1]]].filter(Boolean)
+            : snapshots;
+      case "timeline":
+        return snapshots; // Timeline handles its own display
+      default:
+        return snapshots;
+    }
+  }, [snapshots, viewMode]);
 
   const getItemQuantity = (itemId: number, snap: DeliveryMatrixSnapshot) => {
     const item = snap.items.find(i => i.itemId === itemId);
@@ -115,8 +177,11 @@ export default function DeliveryMatrixPage() {
 
   const compareValues = (itemId: number, current: DeliveryMatrixSnapshot, idx: number, mode: DisplayMode) => {
     if (idx === 0) return null;
+    const visibleSnaps = viewMode.type === "timeline" ? snapshots : visibleSnapshots;
+    const prevIdx = viewMode.type === "compare-steps" ? 0 : idx - 1;
+
     const currItem = current.items.find(i => i.itemId === itemId);
-    const prevItem = snapshots[idx - 1].items.find(i => i.itemId === itemId);
+    const prevItem = visibleSnaps[prevIdx]?.items.find(i => i.itemId === itemId);
 
     const currValue = getItemValue(currItem, mode);
     const prevValue = getItemValue(prevItem, mode);
@@ -133,6 +198,11 @@ export default function DeliveryMatrixPage() {
   if (isLoading) return <div className="p-6">Loading...</div>;
   if (error) return <div className="p-6 text-red-500">{error}</div>;
   if (!snapshots.length) return <div className="p-6 text-muted">No data available.</div>;
+
+  // Ensure we have valid data before rendering
+  if (!itemsMap || !allItemIds) {
+    return <div className="p-6 text-muted">Processing data...</div>;
+  }
 
   return (
       <div className="container mx-auto py-6">
@@ -193,12 +263,31 @@ export default function DeliveryMatrixPage() {
                 </Card>
             )}
 
-            {/* Use the new DeliverySummaryCards component */}
-            <DeliverySummaryCards metricsByUnit={metricsByUnit} displayMode={displayMode} />
+            {/* Summary Cards */}
+            <div className="mb-6">
+              <div className="flex items-center justify-between mb-2">
+                <h3 className="text-sm font-medium">Summary Metrics</h3>
+                <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => setShowSummaryCards(!showSummaryCards)}
+                    className="h-8 px-2"
+                >
+                  {showSummaryCards ? 'Hide' : 'Show'}
+                </Button>
+              </div>
+              {showSummaryCards && (
+                  <DeliverySummaryCards metricsByUnit={metricsByUnit} displayMode={displayMode} />
+              )}
+            </div>
 
             <div className="flex gap-4 mb-4">
               <label className="flex gap-2 text-sm font-medium">
-                <input type="checkbox" checked={showOnlyChanged} onChange={e => setShowOnlyChanged(e.target.checked)} />
+                <input
+                    type="checkbox"
+                    checked={filters.showOnlyChanged}
+                    onChange={e => setFilters({...filters, showOnlyChanged: e.target.checked})}
+                />
                 Show only changed products
               </label>
               <label className="flex gap-2 text-sm font-medium">
@@ -252,12 +341,20 @@ export default function DeliveryMatrixPage() {
                 <TableFooter>
                   <TableRow>
                     <TableCell colSpan={2} className="font-semibold">Total</TableCell>
-                    {snapshots.map((snap, i) => {
+                    {visibleSnapshots.map((snap, i) => {
                       const metrics = calculateSnapshotFinancials(snap.items);
                       let footerValue = "";
                       switch (displayMode) {
                         case "quantity":
-                          footerValue = `${snap.items.reduce((sum, item) => sum + item.quantity, 0).toFixed(0)} items`;
+                          // Group by unit type for quantity display
+                          const unitGroups = new Map<string, number>();
+                          snap.items.forEach(item => {
+                            const current = unitGroups.get(item.unit) || 0;
+                            unitGroups.set(item.unit, current + item.quantity);
+                          });
+                          footerValue = Array.from(unitGroups.entries())
+                              .map(([unit, total]) => `${total.toFixed(2)} ${unit}`)
+                              .join(', ');
                           break;
                         case "cost":
                           footerValue = `€${metrics.totalCost.toFixed(2)}`;

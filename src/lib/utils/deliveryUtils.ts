@@ -14,3 +14,7 @@ export const convertDeliveryStepName = (deliveryStepName: string): DeliveryStep[
     };
     return mapping[deliveryStepName] || deliveryStepName as DeliveryStep['stepType'];
 };
+
+export function cn(...classes: (string | boolean | undefined)[]) {
+    return classes.filter(Boolean).join(" ");
+}
