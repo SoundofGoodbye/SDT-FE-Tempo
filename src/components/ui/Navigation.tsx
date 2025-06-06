@@ -6,7 +6,7 @@ import { usePathname, useSearchParams, useRouter } from "next/navigation";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Icons } from "@/components/ui/icons";
-import { logout, parseJwt } from "@/lib/api/auth-service";
+import { getUserId, getStoredTokens, logout, parseJwt } from "@/lib/api/auth-service";
 
 export function Navigation() {
   const pathname = usePathname();
@@ -17,8 +17,8 @@ export function Navigation() {
   const [username, setUsername] = useState("User");
 
   useEffect(() => {
-    const authToken = localStorage.getItem("authToken");
-    const userId = localStorage.getItem("userId");
+    const authToken = getStoredTokens()?.accessToken;
+    const userId = getUserId()
     setIsAuthenticated(!!authToken);
 
     if (authToken) {

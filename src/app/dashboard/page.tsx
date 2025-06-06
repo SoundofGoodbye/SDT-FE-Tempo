@@ -8,9 +8,10 @@ import DeliveriesCalendarPage from "@/components/feature/DeliveriesCalendarPage"
 import DeliveryHistory from "@/components/feature/DeliveryHistory";
 import { DashboardSearch } from "@/components/ui/DashboardSearch";
 import { useRequireAuth } from "@/hooks/useRequireAuth";
+import {getCompanyId, getUserEmail, getUserId} from "@/lib/api/auth-service";
 
 export default function DashboardPage() {
-  const [user, setUser] = useState<{ name: string; companyId: number } | null>(
+  const [user, setUser] = useState<{ name: string | null; companyId: number | null} | null>(
     null,
   );
   const router = useRouter();
@@ -21,12 +22,12 @@ export default function DashboardPage() {
 
   useEffect(() => {
     // Set user data from localStorage
-    const userId = localStorage.getItem("userId");
-    const companyId = localStorage.getItem("companyId");
+    const userId = getUserId();
+    const companyId = getCompanyId();
 
     setUser({
-      name: "demo", // In a real app, you would fetch the user's name
-      companyId: companyId ? parseInt(companyId) : 1,
+      name: getUserEmail(), // In a real app, you would fetch the user's name
+      companyId: companyId,
     });
   }, []);
 

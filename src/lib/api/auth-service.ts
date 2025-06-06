@@ -1,4 +1,6 @@
+// src/lib/api/auth-service.ts
 import { useRouter } from "next/navigation";
+import { cookieUtils, authCookies } from "@/lib/utils/cookies";
 
 export interface AuthResponse {
   accessToken: string;
@@ -60,8 +62,8 @@ export const isTokenExpired = (token: string): boolean => {
 export const getStoredTokens = () => {
   if (typeof window === 'undefined') return null;
 
-  const accessToken = localStorage.getItem("accessToken");
-  const refreshToken = localStorage.getItem("refreshToken");
+  const accessToken = cookieUtils.get(authCookies.ACCESS_TOKEN);
+  const refreshToken = cookieUtils.get(authCookies.REFRESH_TOKEN);
 
   return { accessToken, refreshToken };
 };
@@ -69,7 +71,7 @@ export const getStoredTokens = () => {
 export const getUserRoles = (): string[] => {
   if (typeof window === 'undefined') return [];
 
-  const rolesStr = localStorage.getItem("userRoles");
+  const rolesStr = cookieUtils.get(authCookies.USER_ROLES);
   if (!rolesStr) return [];
 
   try {
@@ -87,8 +89,28 @@ export const hasRole = (role: string): boolean => {
 export const getShopId = (): number | null => {
   if (typeof window === 'undefined') return null;
 
-  const shopId = localStorage.getItem("shopId");
+  const shopId = cookieUtils.get(authCookies.SHOP_ID);
   return shopId ? parseInt(shopId) : null;
+};
+
+export const getUserEmail = (): string | null => {
+  if (typeof window === 'undefined') return null;
+
+  return cookieUtils.get(authCookies.USER_EMAIL) || null;
+};
+
+export const getUserId = (): number | null => {
+  if (typeof window === 'undefined') return null;
+
+  const userId = cookieUtils.get(authCookies.USER_ID);
+  return userId ? parseInt(userId) : null;
+};
+
+export const getCompanyId = (): number | null => {
+  if (typeof window === 'undefined') return null;
+
+  const companyId = cookieUtils.get(authCookies.COMPANY_ID);
+  return companyId ? parseInt(companyId) : null;
 };
 
 export const isAuthenticated = (): boolean => {
@@ -106,31 +128,24 @@ export const isAuthenticated = (): boolean => {
   return !!refreshToken;
 };
 
-export const storeAuthData = (authData: AuthResponse) => {
-  localStorage.setItem("accessToken", authData.accessToken);
-  localStorage.setItem("refreshToken", authData.refreshToken);
-  localStorage.setItem("userId", authData.userId.toString());
-  localStorage.setItem("userEmail", authData.email);
-  localStorage.setItem("userRoles", JSON.stringify(authData.roles));
-  localStorage.setItem("companyId", authData.companyId.toString());
+export const storeAuthData = (authData: AuthResponse, rememberMe: boolean = false) => {
+  authCookies.setSecure(authCookies.ACCESS_TOKEN, authData.accessToken, rememberMe);
+  authCookies.setSecure(authCookies.REFRESH_TOKEN, authData.refreshToken, rememberMe);
+  authCookies.setSecure(authCookies.USER_ID, authData.userId.toString(), rememberMe);
+  authCookies.setSecure(authCookies.USER_EMAIL, authData.email, rememberMe);
+  authCookies.setSecure(authCookies.USER_ROLES, JSON.stringify(authData.roles), rememberMe);
+  authCookies.setSecure(authCookies.COMPANY_ID, authData.companyId.toString(), rememberMe);
 
   if (authData.shopId) {
-    localStorage.setItem("shopId", authData.shopId.toString());
+    authCookies.setSecure(authCookies.SHOP_ID, authData.shopId.toString(), rememberMe);
   }
 
   // For backward compatibility
-  localStorage.setItem("authToken", authData.accessToken);
+  authCookies.setSecure(authCookies.AUTH_TOKEN, authData.accessToken, rememberMe);
 };
 
 export const clearAuthData = () => {
-  localStorage.removeItem("accessToken");
-  localStorage.removeItem("refreshToken");
-  localStorage.removeItem("userId");
-  localStorage.removeItem("userEmail");
-  localStorage.removeItem("userRoles");
-  localStorage.removeItem("companyId");
-  localStorage.removeItem("shopId");
-  localStorage.removeItem("authToken"); // backward compatibility
+  authCookies.clearAll();
 };
 
 export async function login(request: LoginRequest): Promise<AuthResponse> {
@@ -150,7 +165,7 @@ export async function login(request: LoginRequest): Promise<AuthResponse> {
   }
 
   const authData = await response.json();
-  storeAuthData(authData);
+  storeAuthData(authData, request.rememberMe || false);
 
   return authData;
 }
@@ -177,16 +192,19 @@ export async function refreshAccessToken(): Promise<string | null> {
 
     const data: RefreshResponse = await response.json();
 
+    // Determine if user had remember me enabled by checking cookie expiry
+    const rememberMe = !!cookieUtils.get(authCookies.REFRESH_TOKEN);
+
     // Update stored tokens
-    localStorage.setItem("accessToken", data.accessToken);
-    localStorage.setItem("authToken", data.accessToken); // backward compatibility
+    authCookies.setSecure(authCookies.ACCESS_TOKEN, data.accessToken, rememberMe);
+    authCookies.setSecure(authCookies.AUTH_TOKEN, data.accessToken, rememberMe); // backward compatibility
 
     // Update other data if provided
-    if (data.userId) localStorage.setItem("userId", data.userId.toString());
-    if (data.email) localStorage.setItem("userEmail", data.email);
-    if (data.roles) localStorage.setItem("userRoles", JSON.stringify(data.roles));
-    if (data.companyId) localStorage.setItem("companyId", data.companyId.toString());
-    if (data.shopId) localStorage.setItem("shopId", data.shopId.toString());
+    if (data.userId) authCookies.setSecure(authCookies.USER_ID, data.userId.toString(), rememberMe);
+    if (data.email) authCookies.setSecure(authCookies.USER_EMAIL, data.email, rememberMe);
+    if (data.roles) authCookies.setSecure(authCookies.USER_ROLES, JSON.stringify(data.roles), rememberMe);
+    if (data.companyId) authCookies.setSecure(authCookies.COMPANY_ID, data.companyId.toString(), rememberMe);
+    if (data.shopId) authCookies.setSecure(authCookies.SHOP_ID, data.shopId.toString(), rememberMe);
 
     return data.accessToken;
   } catch (error) {
@@ -211,7 +229,7 @@ export const logout = async (router?: ReturnType<typeof useRouter>): Promise<voi
     }
   }
 
-  // Clear local storage
+  // Clear cookies
   clearAuthData();
 
   // Redirect to login
@@ -239,7 +257,7 @@ export const logoutAllSessions = async (router?: ReturnType<typeof useRouter>): 
     }
   }
 
-  // Clear local storage and redirect
+  // Clear cookies and redirect
   clearAuthData();
 
   if (router) {
