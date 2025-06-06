@@ -10,17 +10,6 @@ export interface ProductListItemModel {
     [key: string]: any;
 }
 
-export type StepName = "INITIAL_REQUEST" | "ON_BOARDING" | "OFF_LOADING" | "FINAL";
-
-export interface VersionModel {
-    versionId: number;
-    deliveryStepName: StepName;
-    productListDetailsId: number;
-
-    // Add any additional fields that might be in the API response
-    [key: string]: any;
-}
-
 export interface ProductListVersionModel {
     versionId: number;
     workflowStepId: number;
@@ -30,6 +19,15 @@ export interface ProductListVersionModel {
 
     // Add any additional fields that might be in the API response
     [key: string]: any;
+}
+
+// Used for version lists and selection
+export interface Version {
+    id: string;
+    stepType: string;
+    timestamp: string;
+    productListDetailsId: string;
+    stepDescription: string | null;
 }
 
 export interface ProductListDetailsProps {
@@ -50,15 +48,6 @@ export interface ProductItemSummary {
     sellingPrice?: number;
 }
 
-// A workflow step as returned by the new BE
-export interface WorkflowStep {
-    id: number;
-    stepTemplateId: number; // ID of the template
-    stepOrder: number;
-    customName: string;
-    isMandatory: boolean;
-}
-
 // Used in order/actual product lists (more detailed screens)
 export interface ProductItem {
     id: string;
@@ -68,15 +57,6 @@ export interface ProductItem {
     notes: string;
     unitPrice: number;
     sellingPrice: number;
-}
-
-// Used for version lists and selection
-export interface Version {
-    id: string;
-    stepType: string;
-    timestamp: string;
-    productListDetailsId: string;
-    stepDescription: string | null;
 }
 
 export interface DiffItem {

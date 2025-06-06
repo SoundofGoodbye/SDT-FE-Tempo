@@ -24,7 +24,8 @@ import {
 
 import {
   ProductListDetailsProps,
-  ProductListItemModel
+  ProductListItemModel,
+  ProductItem
 } from "@/types/delivery";
 import {AutoComplete} from "@/components/ui/AutoComplete";
 
@@ -35,7 +36,6 @@ const ProductListDetails = ({
                               date = "2023-05-15",
                               companyId = 1,
                             }: ProductListDetailsProps) => {
-  // We'll determine the productListDetailsId from the API
   const [items, setItems] = useState<ProductListItemModel[]>([]);
   const [detailsId, setDetailsId] = useState<number | null>(null);
   const [editing, setEditing] = useState(false);
@@ -44,9 +44,8 @@ const ProductListDetails = ({
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  // State for initial version
+  // State for initial version items
   const [initialItems, setInitialItems] = useState<ProductListItemModel[]>([]);
-  const [initialVersionId, setInitialVersionId] = useState<number | null>(null);
   const [loadingInitial, setLoadingInitial] = useState(false);
 
   const [productItemOptions, setProductItemOptions] = useState<{ id: number; name: string }[]>([]);
@@ -55,27 +54,17 @@ const ProductListDetails = ({
   // Add state to track units for items
   const [itemUnits, setItemUnits] = useState<Record<number, string>>({});
 
-  const handleOpenAddDialog = () => {
-    setIsAddProductDialogOpen(true);
-    if (!productItemsLoaded) {
-      apiClient.get<ApiResponse<{ id: number; itemName: string }[]>>(`/company/${companyId}/productItems`)
-          .then(res => {
-            const mappedOptions = (res.payload || []).map(p => ({ id: p.id, name: p.itemName }));
-            setProductItemOptions(mappedOptions);
-            setProductItemsLoaded(true);
-          })
-          .catch(e => console.error("Failed to load product items", e));
-    }
-  };
-
   const {
     workflowSteps,
     currentStep,
+    nextStep,
     initialVersion,
     currentVersion,
     advanceStep,
     refetch,
+    fetchProductItems,
     isFinalStep,
+    productListDetailsNumber,
     loading: workflowLoading,
     error: workflowError
   } = useDeliveryWorkflow(companyId, shopId, date);
@@ -91,7 +80,88 @@ const ProductListDetails = ({
 
   const [addedItems, setAddedItems] = useState<{ id: number; quantity: number; unit: string }[]>([]);
 
-  // And update the handleAdvance function to include items marked for removal:
+  // Fetch initial version items
+  useEffect(() => {
+    if (!initialVersion?.productListDetailsId) return;
+
+    setLoadingInitial(true);
+    fetchProductItems(initialVersion.productListDetailsId)
+        .then((productItems) => {
+          // Convert ProductItem[] to ProductListItemModel[]
+          const convertedItems: ProductListItemModel[] = productItems.map(item => ({
+            id: parseInt(item.id),
+            itemId: parseInt(item.id),
+            itemName: item.productName,
+            name: item.productName,
+            quantity: item.qtyOrdered,
+            unit: item.notes, // Using notes as unit for backward compatibility
+            unitPrice: item.unitPrice,
+            sellingPrice: item.sellingPrice,
+            shopName: shopName,
+            productListDetailsId: initialVersion.productListDetailsId
+          }));
+          setInitialItems(convertedItems);
+        })
+        .catch((e) => {
+          console.error("Failed to fetch initial version items", e);
+          setInitialItems([]);
+        })
+        .finally(() => {
+          setLoadingInitial(false);
+        });
+  }, [initialVersion?.productListDetailsId, fetchProductItems, shopName]);
+
+  // Fetch current version items
+  useEffect(() => {
+    if (!currentVersion?.productListDetailsId) return;
+
+    setDetailsId(currentVersion.productListDetailsId);
+
+    fetchProductItems(currentVersion.productListDetailsId)
+        .then((productItems) => {
+          // Convert ProductItem[] to ProductListItemModel[]
+          const convertedItems: ProductListItemModel[] = productItems.map(item => ({
+            id: parseInt(item.id),
+            itemId: parseInt(item.id),
+            itemName: item.productName,
+            name: item.productName,
+            quantity: item.qtyOrdered,
+            unit: item.notes, // Using notes as unit for backward compatibility
+            unitPrice: item.unitPrice,
+            sellingPrice: item.sellingPrice,
+            shopName: shopName,
+            productListDetailsId: currentVersion.productListDetailsId
+          }));
+          setItems(convertedItems);
+
+          // Initialize itemUnits with existing units
+          const units: Record<number, string> = {};
+          convertedItems.forEach(item => {
+            if (item.unit) {
+              units[item.id] = item.unit;
+            }
+          });
+          setItemUnits(units);
+        })
+        .catch((e) => {
+          console.error("Failed to fetch items for current version", e);
+          setItems([]);
+        });
+  }, [currentVersion?.productListDetailsId, fetchProductItems, shopName]);
+
+  const handleOpenAddDialog = () => {
+    setIsAddProductDialogOpen(true);
+    if (!productItemsLoaded) {
+      apiClient.get<ApiResponse<{ id: number; itemName: string }[]>>(`/company/${companyId}/productItems`)
+          .then(res => {
+            const mappedOptions = (res.payload || []).map(p => ({ id: p.id, name: p.itemName }));
+            setProductItemOptions(mappedOptions);
+            setProductItemsLoaded(true);
+          })
+          .catch(e => console.error("Failed to load product items", e));
+    }
+  };
+
   const handleAdvance = async () => {
     setLoading(true);
     setError(null);
@@ -114,7 +184,7 @@ const ProductListDetails = ({
 
       await advanceStep(description, itemUpdates);
 
-      // After successful advance, refresh the items from the API response
+      // After successful advance, refresh the workflow data
       await refetch();
 
       // Clear local state
@@ -129,29 +199,6 @@ const ProductListDetails = ({
       setLoading(false);
     }
   };
-
-  useEffect(() => {
-    if (!currentVersion?.productListDetailsId) return;
-
-    setDetailsId(currentVersion.productListDetailsId);
-
-    apiClient.get<ApiResponse<ProductListItemModel[]>>(
-        `company/${companyId}/productListItems/${currentVersion.productListDetailsId}`
-    ).then((res) => {
-      setItems(res.payload || []);
-      // Initialize itemUnits with existing units
-      const units: Record<number, string> = {};
-      (res.payload || []).forEach(item => {
-        if (item.unit) {
-          units[item.id] = item.unit;
-        }
-      });
-      setItemUnits(units);
-    }).catch((e) => {
-      console.error("Failed to fetch items for current version", e);
-      setItems([]);
-    });
-  }, [currentVersion?.productListDetailsId]);
 
   const handleRemoveProduct = (productId: number) => {
     // Add to overrides with quantity 0 for removal
@@ -230,6 +277,31 @@ const ProductListDetails = ({
     }
   };
 
+  // Calculate action labels using nextStep from hook
+  const getNextActionLabel = () => {
+    if (!nextStep) return '';
+
+    let actionLabel = `Start ${nextStep.customName || nextStep.stepKey || ''}`;
+    try {
+      const meta = nextStep.metaJson ? JSON.parse(nextStep.metaJson) : {};
+      actionLabel = meta.actionLabel || actionLabel;
+    } catch {}
+
+    return actionLabel;
+  };
+
+  const getCurrentActionLabel = () => {
+    if (!currentStep) return '';
+
+    let label = `Complete ${currentStep.customName || currentStep.stepKey || ''}`;
+    try {
+      const meta = currentStep.metaJson ? JSON.parse(currentStep.metaJson) : {};
+      label = meta.actionLabel || label;
+    } catch {}
+
+    return label;
+  };
+
   return (
       <div className="bg-background p-6 rounded-lg shadow-sm">
         <Card>
@@ -238,7 +310,7 @@ const ProductListDetails = ({
               <div>
                 <CardTitle className="text-2xl">{shopName}</CardTitle>
                 <p className="text-muted-foreground mt-1">
-                  Product List ID: {detailsId}
+                  Product List ID: {productListDetailsNumber || detailsId}
                 </p>
                 <p className="text-muted-foreground">Date: {date}</p>
               </div>
@@ -248,13 +320,13 @@ const ProductListDetails = ({
             </div>
           </CardHeader>
           <CardContent>
-            {error && (
+            {(error || workflowError) && (
                 <Alert variant="destructive" className="mb-4">
-                  <AlertDescription>{error}</AlertDescription>
+                  <AlertDescription>{error || workflowError}</AlertDescription>
                 </Alert>
             )}
 
-            {loading && (
+            {(loading || workflowLoading) && (
                 <div className="flex justify-center my-8">
                   <Spinner />
                 </div>
@@ -405,22 +477,9 @@ const ProductListDetails = ({
             {isFinalStep ? (
                 <Badge variant="outline" className="self-end">Delivered</Badge>
             ) : !editing ? (
-                (() => {
-                  const currentIndex = workflowSteps.findIndex(s => s.id === currentStep?.id);
-                  const nextStep = currentIndex !== -1 ? workflowSteps[currentIndex + 1] : null;
-
-                  let actionLabel = `Start ${nextStep?.customName || nextStep?.stepKey || ''}`;
-                  try {
-                    const meta = nextStep?.metaJson ? JSON.parse(nextStep.metaJson) : {};
-                    actionLabel = meta.actionLabel || actionLabel;
-                  } catch {}
-
-                  return (
-                      <Button onClick={() => setEditing(true)} className="self-end">
-                        {actionLabel}
-                      </Button>
-                  );
-                })()
+                <Button onClick={() => setEditing(true)} className="self-end">
+                  {getNextActionLabel()}
+                </Button>
             ) : (
                 <>
                   <Textarea
@@ -430,16 +489,7 @@ const ProductListDetails = ({
                       className="w-full"
                   />
                   <div className="flex justify-between w-full">
-                    {(() => {
-                      let label = `Complete ${currentStep?.customName || currentStep?.stepKey || ''}`;
-                      try {
-                        const meta = currentStep?.metaJson ? JSON.parse(currentStep.metaJson) : {};
-                        label = meta.actionLabel || label;
-                      } catch {}
-                      return (
-                          <Button onClick={handleAdvance}>{label}</Button>
-                      );
-                    })()}
+                    <Button onClick={handleAdvance}>{getCurrentActionLabel()}</Button>
                   </div>
                 </>
             )}
