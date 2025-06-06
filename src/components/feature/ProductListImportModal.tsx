@@ -5,6 +5,7 @@ import { Upload, FileSpreadsheet, AlertCircle } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Alert, AlertDescription } from '@/components/ui/alert';
+import {getStoredTokens, getUserEmail} from "@/lib/api/auth-service";
 
 interface ProductListImportModalProps {
   isOpen: boolean;
@@ -69,7 +70,7 @@ export const ProductListImportModal: React.FC<ProductListImportModalProps> = ({
 
     const formData = new FormData();
     formData.append('file', selectedFile);
-    formData.append('importedBy', localStorage.getItem('userEmail') || 'unknown@email.com');
+    formData.append('importedBy', getUserEmail() || 'unknown@email.com');
 
     try {
       const response = await fetch(
@@ -77,7 +78,7 @@ export const ProductListImportModal: React.FC<ProductListImportModalProps> = ({
           {
             method: 'POST',
             headers: {
-              'Authorization': `Bearer ${localStorage.getItem('authToken')}`
+              'Authorization': `Bearer ${getStoredTokens()?.accessToken}`
             },
             body: formData
           }
