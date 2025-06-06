@@ -14,16 +14,18 @@ type VersionListProps = {
   companyId?: string;
   shopId?: string;
   date?: string;
+  productListDetailsNumber?: string;
 };
 
 export const VersionList: React.FC<VersionListProps> = ({
-  items = [],
-  isLoading = false,
-  showExportAsCsvFile = false,
-  companyId,
-  shopId,
-  date,
-}) => {
+                                                          items = [],
+                                                          isLoading = false,
+                                                          showExportAsCsvFile = false,
+                                                          companyId,
+                                                          shopId,
+                                                          date,
+                                                          productListDetailsNumber,
+                                                        }) => {
 
   const showExportCsv = shopId != undefined && date != undefined && companyId != undefined;
 
@@ -36,11 +38,11 @@ export const VersionList: React.FC<VersionListProps> = ({
 
     try {
       const response: any = await apiClient.get(
-        `/company/${companyId}/productList/csv-file?shopId=${shopId}&date=${date}`,
-        {
-          responseType: 'blob',
-          headers: {'Accept': 'text/csv, application/octet-stream'}
-        }
+          `/company/${companyId}/productList/csv-file?shopId=${shopId}&date=${date}`,
+          {
+            responseType: 'blob',
+            headers: {'Accept': 'text/csv, application/octet-stream'}
+          }
       );
 
       // Create blob from response
@@ -102,95 +104,100 @@ export const VersionList: React.FC<VersionListProps> = ({
 
   if (isLoading) {
     return (
-      <div className="w-full bg-white p-4 rounded-md shadow-sm">
-        <div className="flex justify-center items-center h-40">
-          <p className="text-gray-500">Loading product list...</p>
+        <div className="w-full bg-white p-4 rounded-md shadow-sm">
+          <div className="flex justify-center items-center h-40">
+            <p className="text-gray-500">Loading product list...</p>
+          </div>
         </div>
-      </div>
     );
   }
 
   if (items.length === 0) {
     return (
-      <div className="w-full bg-white p-4 rounded-md shadow-sm">
-        <div className="flex justify-center items-center h-40">
-          <p className="text-gray-500">No products for this version.</p>
+        <div className="w-full bg-white p-4 rounded-md shadow-sm">
+          <div className="flex justify-center items-center h-40">
+            <p className="text-gray-500">No products for this version.</p>
+          </div>
         </div>
-      </div>
     );
   }
 
   return (
-    <div className="w-full bg-white p-4 rounded-md shadow-sm">
-      <div className="flex justify-between items-center mb-4">
-        <h3 className="text-lg font-medium">Product List</h3>
-        {showExportAsCsvFile && showExportCsv && (
-          <div className="flex flex-col items-end gap-2">
-            <Button
-              onClick={handleDownloadCsvFile}
-              disabled={isDownloading}
-              className="flex items-center gap-2"
-            >
-              {isDownloading ? (
-                <>
-                  <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
-                  Downloading...
-                </>
-              ) : (
-                <>
-                  <svg
-                    className="w-4 h-4"
-                    fill="none"
-                    stroke="currentColor"
-                    viewBox="0 0 24 24"
-                  >
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      strokeWidth={2}
-                      d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
-                    />
-                  </svg>
-                  Export CSV
-                </>
-              )}
-            </Button>
-
-            {downloadError && (
-              <p className="text-sm text-red-600 max-w-xs text-right">
-                {downloadError}
-              </p>
+      <div className="w-full bg-white p-4 rounded-md shadow-sm">
+        <div className="flex justify-between items-center mb-4">
+          <div>
+            <h3 className="text-lg font-medium">Product List</h3>
+            {productListDetailsNumber && (
+                <p className="text-sm text-muted-foreground">ID: {productListDetailsNumber}</p>
             )}
           </div>
-        )}
-      </div>
+          {showExportAsCsvFile && showExportCsv && (
+              <div className="flex flex-col items-end gap-2">
+                <Button
+                    onClick={handleDownloadCsvFile}
+                    disabled={isDownloading}
+                    className="flex items-center gap-2"
+                >
+                  {isDownloading ? (
+                      <>
+                        <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+                        Downloading...
+                      </>
+                  ) : (
+                      <>
+                        <svg
+                            className="w-4 h-4"
+                            fill="none"
+                            stroke="currentColor"
+                            viewBox="0 0 24 24"
+                        >
+                          <path
+                              strokeLinecap="round"
+                              strokeLinejoin="round"
+                              strokeWidth={2}
+                              d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
+                          />
+                        </svg>
+                        Export CSV
+                      </>
+                  )}
+                </Button>
 
-      <Table>
-        <TableHeader>
-          <TableRow>
-            <TableHead>Row</TableHead>
-            <TableHead>Product Name</TableHead>
-            <TableHead className="text-right">Qty Ordered</TableHead>
-            <TableHead className="text-right">Qty Actual</TableHead>
-            <TableHead>Notes</TableHead>
-            <TableHead>Unit Price Total</TableHead>
-            <TableHead>Selling Price Total</TableHead>
-          </TableRow>
-        </TableHeader>
-        <TableBody>
-          {items.map((item, index) => (
-            <TableRow key={item.id}>
-              <TableCell className="font-medium">{index + 1}</TableCell>
-              <TableCell className="font-medium">{item.productName}</TableCell>
-              <TableCell className="text-center">{item.qtyOrdered}</TableCell>
-              <TableCell className="text-center">{item.qtyActual}</TableCell>
-              <TableCell className="text-center">{item.notes}</TableCell>
-              <TableCell className="text-center">{(item.unitPrice * item.qtyActual).toFixed(3)}</TableCell>
-              <TableCell className="text-center">{(item.sellingPrice * item.qtyActual).toFixed(3)}</TableCell>
+                {downloadError && (
+                    <p className="text-sm text-red-600 max-w-xs text-right">
+                      {downloadError}
+                    </p>
+                )}
+              </div>
+          )}
+        </div>
+
+        <Table>
+          <TableHeader>
+            <TableRow>
+              <TableHead>Row</TableHead>
+              <TableHead>Product Name</TableHead>
+              <TableHead className="text-right">Qty Ordered</TableHead>
+              <TableHead className="text-right">Qty Actual</TableHead>
+              <TableHead>Notes</TableHead>
+              <TableHead>Unit Price Total</TableHead>
+              <TableHead>Selling Price Total</TableHead>
             </TableRow>
-          ))}
-        </TableBody>
-      </Table>
-    </div>
+          </TableHeader>
+          <TableBody>
+            {items.map((item, index) => (
+                <TableRow key={item.id}>
+                  <TableCell className="font-medium">{index + 1}</TableCell>
+                  <TableCell className="font-medium">{item.productName}</TableCell>
+                  <TableCell className="text-center">{item.qtyOrdered}</TableCell>
+                  <TableCell className="text-center">{item.qtyActual}</TableCell>
+                  <TableCell className="text-center">{item.notes}</TableCell>
+                  <TableCell className="text-center">{(item.unitPrice * item.qtyActual).toFixed(3)}</TableCell>
+                  <TableCell className="text-center">{(item.sellingPrice * item.qtyActual).toFixed(3)}</TableCell>
+                </TableRow>
+            ))}
+          </TableBody>
+        </Table>
+      </div>
   );
 };
