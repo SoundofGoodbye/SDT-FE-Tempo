@@ -22,7 +22,8 @@ export default function DeliveryVersionsListPage({ shopId, date, companyId }: De
     latestVersion,
     fetchProductItems,
     versionsLoading,
-    versionsError
+    versionsError,
+    productListDetailsNumber
   } = useDeliveryWorkflow(parseInt(companyId), parseInt(shopId), date);
 
   const [isLoadingItems, setIsLoadingItems] = useState(false);
@@ -146,6 +147,7 @@ export default function DeliveryVersionsListPage({ shopId, date, companyId }: De
               shopId={shopId}
               date={date}
               companyId={companyId}
+              productListDetailsNumber={productListDetailsNumber || undefined}
           />
         </div>
       </div>
