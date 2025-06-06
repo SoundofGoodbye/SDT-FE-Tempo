@@ -143,11 +143,14 @@ export default function DeliveryVersionsListPage({ shopId, date, companyId }: De
           <VersionList
               items={productItems}
               isLoading={isLoadingItems}
-              showExportAsCsvFile={false}
+              showExportAsCsvFile={true}
               shopId={shopId}
               date={date}
               companyId={companyId}
               productListDetailsNumber={productListDetailsNumber || undefined}
+              productListDetailsId={
+                versions.find(v => v.versionId.toString() === selectedVersionId)?.productListDetailsId
+              }
           />
         </div>
       </div>
