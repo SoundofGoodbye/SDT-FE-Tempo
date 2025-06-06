@@ -26,7 +26,6 @@ export default function DeliveryVersionsListPage({ shopId, date, companyId }: De
   const [selectedStepType, setSelectedStepType] = useState<string | null>(null);
   const [selectedVersionId, setSelectedVersionId] = useState<string | null>(null);
   const [productItems, setProductItems] = useState<ProductItem[]>([]);
-  const [viewedVersions, setViewedVersions] = useState<Set<string>>(new Set());
 
   // Group versions by step type
   const groupedVersions = versions.reduce<Record<string, DeliveryStep[]>>((acc, version) => {
@@ -136,13 +135,6 @@ export default function DeliveryVersionsListPage({ shopId, date, companyId }: De
 
       // Set the product items
       setProductItems(mappedItems || []);
-
-      // Add to viewed versions
-      setViewedVersions(prev => {
-            const next = new Set(prev);
-            next.add(versionId);
-            return next;
-          });
     } catch (error) {
       console.error("Failed to fetch product items:", error);
       // Treat all errors as "no products" cases
@@ -163,10 +155,6 @@ export default function DeliveryVersionsListPage({ shopId, date, companyId }: De
     } else {
       fetchProductItems(versionId);
     }
-  };
-
-  const handleCompareVersions = () => {
-    router.push(`/shops/${shopId}/deliveries/${date}/compare`);
   };
 
   if (isLoadingVersions) {
@@ -193,12 +181,6 @@ export default function DeliveryVersionsListPage({ shopId, date, companyId }: De
     <div className="px-4 py-6">
       <div className="flex flex-col sm:flex-row sm:justify-between gap-4 mb-6">
         <h2 className="text-2xl font-bold">Delivery Versions - {date}</h2>
-        <Button
-          onClick={handleCompareVersions}
-          disabled={viewedVersions.size < 2}
-        >
-          Compare Versions
-        </Button>
       </div>
 
       <div className="mb-6">
