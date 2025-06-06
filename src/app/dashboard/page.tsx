@@ -5,7 +5,6 @@ import { useEffect, useState, Suspense } from "react";
 import { useRouter } from "next/navigation";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { DeliveryDashboard } from "@/components/feature/DeliveryDashboard";
-import DeliveriesCalendarPage from "@/components/feature/DeliveriesCalendarPage";
 import DeliveryHistory from "@/components/feature/DeliveryHistory";
 import { DashboardSearch } from "@/components/ui/DashboardSearch";
 import { useRequireAuth } from "@/hooks/useRequireAuth";
@@ -14,8 +13,7 @@ import { getCompanyId, getUserEmail } from "@/lib/api/auth-service";
 // Tab labels - ready for multi-language support
 const tabLabels = {
   dashboard: "Dashboard",
-  history: "Delivery History",
-  calendar: "Calendar"
+  history: "Delivery History"
 };
 
 export default function DashboardPage() {
@@ -65,12 +63,6 @@ export default function DashboardPage() {
             </TabsContent>
             <TabsContent value="history">
               <DeliveryHistory companyId={user?.companyId?.toString() || "1"} />
-            </TabsContent>
-            <TabsContent value="calendar">
-              <DeliveriesCalendarPage
-                  companyId={user?.companyId || 1}
-                  shopId={1}
-              />
             </TabsContent>
           </Tabs>
 
