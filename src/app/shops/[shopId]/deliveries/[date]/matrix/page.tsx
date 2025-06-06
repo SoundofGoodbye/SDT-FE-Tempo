@@ -27,7 +27,6 @@ import {
   formatMetricValue,
   DisplayMode,
   DeliveryItem,
-  FinancialMetrics,
   FinancialMetricsByUnit
 } from "@/lib/utils/delivery-calculations";
 import {
@@ -36,8 +35,7 @@ import {
   ViewMode,
   applyFilters,
   applySorting,
-  generateInsights,
-  hasProductChanged
+  generateInsights
 } from "@/lib/utils/delivery-filters";
 import {Button} from "@/components/ui/button";
 

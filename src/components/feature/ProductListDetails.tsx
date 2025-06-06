@@ -76,6 +76,7 @@ const ProductListDetails = ({
     advanceStep,
     refetch,
     isFinalStep,
+    productListDetailsNumber,
     loading: workflowLoading,
     error: workflowError
   } = useDeliveryWorkflow(companyId, shopId, date);
@@ -238,7 +239,7 @@ const ProductListDetails = ({
               <div>
                 <CardTitle className="text-2xl">{shopName}</CardTitle>
                 <p className="text-muted-foreground mt-1">
-                  Product List ID: {detailsId}
+                  Product List ID: {productListDetailsNumber || detailsId}
                 </p>
                 <p className="text-muted-foreground">Date: {date}</p>
               </div>
