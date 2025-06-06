@@ -14,6 +14,7 @@ import { CalendarIcon, ChevronRight } from "lucide-react";
 import ProductListDetails from "./ProductListDetails";
 import { apiClient, ApiResponse } from "@/lib/api/api-client";
 import { getUserEmail, getCompanyId } from "@/lib/api/auth-service";
+import { dashboardLabels, getDateLabel, getSubtitleMessage } from "@/lib/constants/dashboard-labels";
 
 interface Shop {
   id: number;
@@ -77,7 +78,7 @@ export function DeliveryDashboard(props: DeliveryDashboardProps) {
         setShops(Array.isArray(shopsData) ? shopsData : []);
         setLoading(false);
       } catch (err) {
-        setError("Failed to fetch shops. Please try again later.");
+        setError(dashboardLabels.errors.fetchShops);
         setLoading(false);
       }
     };
@@ -138,7 +139,7 @@ export function DeliveryDashboard(props: DeliveryDashboardProps) {
       } catch (err) {
         // This catch block will only be triggered for errors in the calendar API call
         // or other errors outside the shop loop
-        setError("Failed to fetch deliveries. Please try again later.");
+        setError(dashboardLabels.errors.fetchDeliveries);
         setLoading(false);
       }
     };
@@ -156,19 +157,6 @@ export function DeliveryDashboard(props: DeliveryDashboardProps) {
     setSelectedShop(null);
   };
 
-  const getStatusColor = (status: string) => {
-    switch (status) {
-      case "pending":
-        return "bg-yellow-100 text-yellow-800";
-      case "in_progress":
-        return "bg-blue-100 text-blue-800";
-      case "completed":
-        return "bg-green-100 text-green-800";
-      default:
-        return "bg-gray-100 text-gray-800";
-    }
-  };
-
   if (selectedShop) {
     return (
         <div className="bg-background w-full p-6">
@@ -177,7 +165,7 @@ export function DeliveryDashboard(props: DeliveryDashboardProps) {
               onClick={handleBackToDashboard}
               className="mb-4"
           >
-            ← Back to Dashboard
+            {dashboardLabels.navigation.backToDashboard}
           </Button>
           <ProductListDetails
               companyId={companyId}
@@ -190,25 +178,30 @@ export function DeliveryDashboard(props: DeliveryDashboardProps) {
     );
   }
 
+  // Calculate if there are any deliveries for the selected date
+  const hasDeliveries = Object.keys(deliveries).length > 0;
+
   return (
       <div className="bg-background w-full p-6">
         <div className="flex flex-col space-y-6">
           <div className="flex flex-col space-y-2">
-            <h1 className="text-3xl font-bold">Welcome, {displayName}!</h1>
+            <h1 className="text-3xl font-bold">
+              {dashboardLabels.welcome.default.replace("{name}", displayName)}
+            </h1>
             <p className="text-muted-foreground">
-              Here are your deliveries for today. Select a shop to view details.
+              {getSubtitleMessage(selectedDate, hasDeliveries, loading)}
             </p>
           </div>
 
           <div className="flex flex-col sm:flex-row sm:justify-between gap-4">
             <h2 className="text-xl font-semibold">
-              Deliveries for {format(selectedDate, "MMMM d, yyyy")}
+              {getDateLabel(selectedDate)}
             </h2>
             <Popover>
               <PopoverTrigger asChild>
                 <Button variant="outline" className="flex items-center gap-2">
                   <CalendarIcon className="h-4 w-4" />
-                  Select Date
+                  {dashboardLabels.calendar.selectDate}
                 </Button>
               </PopoverTrigger>
               <PopoverContent className="w-auto p-0" align="end">
@@ -256,7 +249,7 @@ export function DeliveryDashboard(props: DeliveryDashboardProps) {
                             <CardHeader className="pb-2">
                               <CardTitle>{shop.shopName}</CardTitle>
                               <p className="text-sm text-muted-foreground">
-                                Location ID: {shop.locationId}
+                                {dashboardLabels.shopCard.locationId} {shop.locationId}
                               </p>
                             </CardHeader>
                             <CardContent>
@@ -264,13 +257,13 @@ export function DeliveryDashboard(props: DeliveryDashboardProps) {
                                 {hasDelivery ? (
                                     <>
                                       <div className="flex flex-col sm:flex-row sm:justify-between gap-2">
-                                        <span className="text-sm">Products:</span>
+                                        <span className="text-sm">{dashboardLabels.shopCard.products}</span>
                                         <span className="font-medium">
                                 {delivery.productCount}
                               </span>
                                       </div>
                                       <div className="flex flex-col sm:flex-row sm:justify-between gap-2">
-                                        <span className="text-sm">Status:</span>
+                                        <span className="text-sm">{dashboardLabels.shopCard.status}</span>
                                         {/*<span*/}
                                         {/*  className={`text-xs px-2 py-1 rounded-full font-medium ${getStatusColor(delivery.status)}`}*/}
                                         {/*>*/}
@@ -282,7 +275,7 @@ export function DeliveryDashboard(props: DeliveryDashboardProps) {
                                           className="w-full mt-2 flex items-center justify-between"
                                           variant="default"
                                       >
-                                        View Details
+                                        {dashboardLabels.shopCard.viewDetails}
                                         <ChevronRight className="h-4 w-4" />
                                       </Button>
                                     </>

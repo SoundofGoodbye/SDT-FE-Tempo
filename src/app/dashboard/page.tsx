@@ -1,3 +1,4 @@
+// src/app/dashboard/page.tsx
 "use client";
 
 import { useEffect, useState, Suspense } from "react";
@@ -8,11 +9,18 @@ import DeliveriesCalendarPage from "@/components/feature/DeliveriesCalendarPage"
 import DeliveryHistory from "@/components/feature/DeliveryHistory";
 import { DashboardSearch } from "@/components/ui/DashboardSearch";
 import { useRequireAuth } from "@/hooks/useRequireAuth";
-import {getCompanyId, getUserEmail, getUserId} from "@/lib/api/auth-service";
+import { getCompanyId, getUserEmail } from "@/lib/api/auth-service";
+
+// Tab labels - ready for multi-language support
+const tabLabels = {
+  dashboard: "Dashboard",
+  history: "Delivery History",
+  calendar: "Calendar"
+};
 
 export default function DashboardPage() {
-  const [user, setUser] = useState<{ name: string | null; companyId: number | null} | null>(
-    null,
+  const [user, setUser] = useState<{ email: string | null; companyId: number | null} | null>(
+      null,
   );
   const router = useRouter();
   const [tabParam, setTabParam] = useState<string | null>("dashboard");
@@ -21,52 +29,55 @@ export default function DashboardPage() {
   useRequireAuth();
 
   useEffect(() => {
-    // Set user data from localStorage
-    const userId = getUserId();
+    // Set user data from auth cookies
+    const userEmail = getUserEmail();
     const companyId = getCompanyId();
 
     setUser({
-      name: getUserEmail(), // In a real app, you would fetch the user's name
+      email: userEmail,
       companyId: companyId,
     });
   }, []);
 
-
   if (!user) {
-    return null; // Or a loading spinner
+    return (
+        <div className="flex min-h-screen items-center justify-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-primary"></div>
+        </div>
+    );
   }
 
   return (
-    <main className="flex min-h-screen flex-col items-center justify-between p-4 md:p-8 bg-background">
-      <Suspense fallback={<div>Loading...</div>}>
-        <DashboardSearch onTabChange={setTabParam} />
-      </Suspense>
-      <div className="w-full max-w-7xl">
+      <main className="flex min-h-screen flex-col items-center justify-between p-4 md:p-8 bg-background">
+        <Suspense fallback={<div>Loading...</div>}>
+          <DashboardSearch onTabChange={setTabParam} />
+        </Suspense>
+        <div className="w-full max-w-7xl">
 
-        <Tabs defaultValue={tabParam || "dashboard"} className="w-full">
-          <TabsList className="mb-6">
-            <TabsTrigger value="dashboard">Dashboard</TabsTrigger>
-            <TabsTrigger value="history">Delivery History</TabsTrigger>
-            <TabsTrigger value="calendar">Calendar</TabsTrigger>
-          </TabsList>
-          <TabsContent value="dashboard" className="w-full">
-            <DeliveryDashboard companyId={user?.companyId || 1} />
-          </TabsContent>
-          <TabsContent value="history">
-            <DeliveryHistory companyId={user?.companyId?.toString() || "1"} />
-          </TabsContent>
-          <TabsContent value="calendar">
-            <DeliveriesCalendarPage
-              companyId={user?.companyId || 1}
-              shopId={1}
-            />
-          </TabsContent>
-        </Tabs>
+          <Tabs defaultValue={tabParam || "dashboard"} className="w-full">
+            <TabsList className="mb-6">
+              <TabsTrigger value="dashboard">{tabLabels.dashboard}</TabsTrigger>
+              <TabsTrigger value="history">{tabLabels.history}</TabsTrigger>
+              <TabsTrigger value="calendar">{tabLabels.calendar}</TabsTrigger>
+            </TabsList>
+            <TabsContent value="dashboard" className="w-full">
+              <DeliveryDashboard companyId={user?.companyId || 1} />
+            </TabsContent>
+            <TabsContent value="history">
+              <DeliveryHistory companyId={user?.companyId?.toString() || "1"} />
+            </TabsContent>
+            <TabsContent value="calendar">
+              <DeliveriesCalendarPage
+                  companyId={user?.companyId || 1}
+                  shopId={1}
+              />
+            </TabsContent>
+          </Tabs>
 
-        <footer className="mt-12 pt-4 border-t text-center text-sm text-muted-foreground">
-          <p>© {new Date().getFullYear()} SimpleDeliveryTracker</p>
-        </footer>
-      </div>
-    </main>
+          <footer className="mt-12 pt-4 border-t text-center text-sm text-muted-foreground">
+            <p>© {new Date().getFullYear()} SimpleDeliveryTracker</p>
+          </footer>
+        </div>
+      </main>
   );
 }
