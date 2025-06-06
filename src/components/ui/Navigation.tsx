@@ -66,17 +66,6 @@ export function Navigation() {
               >
                 Delivery History
               </Link>
-              <Link 
-                href="/dashboard?tab=calendar" 
-                className={cn(
-                  "px-3 py-2 rounded-md text-sm font-medium transition-colors",
-                  pathname === "/dashboard" && tabParam === "calendar"
-                    ? "bg-primary text-primary-foreground" 
-                    : "text-foreground hover:bg-muted"
-                )}
-              >
-                Calendar
-              </Link>
             </nav>
             <div className="flex items-center gap-4">
               <span className="text-sm text-muted-foreground">

@@ -56,7 +56,6 @@ export default function DashboardPage() {
             <TabsList className="mb-6">
               <TabsTrigger value="dashboard">{tabLabels.dashboard}</TabsTrigger>
               <TabsTrigger value="history">{tabLabels.history}</TabsTrigger>
-              <TabsTrigger value="calendar">{tabLabels.calendar}</TabsTrigger>
             </TabsList>
             <TabsContent value="dashboard" className="w-full">
               <DeliveryDashboard companyId={user?.companyId || 1} />
