@@ -2,7 +2,7 @@
 
 import React, { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { StepTimeline } from "../ui/StepTimeline";
+import { StepTimeline, TimelineStep } from "../ui/StepTimeline";
 import { VersionList } from "./VersionList";
 import { useDeliveryWorkflow } from "@/hooks/useDeliveryWorkflow";
 import { ProductItem } from "@/types/delivery";
@@ -11,14 +11,6 @@ interface DeliveryVersionsListPageProps {
   shopId: string;
   date: string;
   companyId: string;
-}
-
-// Temporary type to maintain compatibility with StepTimeline
-interface DeliveryStep {
-  id: string;
-  stepType: string;
-  timestamp?: string;
-  productListDetailsId?: number;
 }
 
 export default function DeliveryVersionsListPage({ shopId, date, companyId }: DeliveryVersionsListPageProps) {
@@ -34,31 +26,41 @@ export default function DeliveryVersionsListPage({ shopId, date, companyId }: De
   } = useDeliveryWorkflow(parseInt(companyId), parseInt(shopId), date);
 
   const [isLoadingItems, setIsLoadingItems] = useState(false);
-  const [selectedStepType, setSelectedStepType] = useState<string | null>(null);
   const [selectedVersionId, setSelectedVersionId] = useState<string | null>(null);
   const [productItems, setProductItems] = useState<ProductItem[]>([]);
 
-  // Convert versions to DeliveryStep format for StepTimeline compatibility
-  const deliverySteps: DeliveryStep[] = versions.map(version => ({
+  // Convert versions to TimelineStep format for StepTimeline
+  const timelineSteps: TimelineStep[] = versions.map(version => ({
     id: version.versionId.toString(),
-    stepType: version.deliveryStepName,
-    timestamp: new Date().toISOString(), // Using current date as timestamp is not in API
-    productListDetailsId: version.productListDetailsId,
+    label: version.deliveryStepName,
+    isSelected: selectedVersionId === version.versionId.toString(),
+    metadata: {
+      productListDetailsId: version.productListDetailsId,
+      stepDescription: version.stepDescription
+    }
   }));
 
   // Group versions by step type
-  const groupedVersions = deliverySteps.reduce<Record<string, DeliveryStep[]>>((acc, version) => {
-    if (!acc[version.stepType]) {
-      acc[version.stepType] = [];
+  const groupedSteps = versions.reduce<Record<string, TimelineStep[]>>((acc, version) => {
+    const stepName = version.deliveryStepName;
+    if (!acc[stepName]) {
+      acc[stepName] = [];
     }
-    acc[version.stepType].push(version);
+    acc[stepName].push({
+      id: version.versionId.toString(),
+      label: version.deliveryStepName,
+      isSelected: selectedVersionId === version.versionId.toString(),
+      metadata: {
+        productListDetailsId: version.productListDetailsId,
+        stepDescription: version.stepDescription
+      }
+    });
     return acc;
   }, {});
 
   // When versions are loaded, select the latest one
   useEffect(() => {
     if (latestVersion && !selectedVersionId) {
-      setSelectedStepType(latestVersion.deliveryStepName);
       setSelectedVersionId(latestVersion.versionId.toString());
 
       // Fetch product items for the latest version
@@ -80,12 +82,11 @@ export default function DeliveryVersionsListPage({ shopId, date, companyId }: De
     }
   };
 
-  const handleSelectStep = (stepType: string, versionId: string) => {
-    setSelectedStepType(stepType);
-    setSelectedVersionId(versionId);
+  const handleSelectStep = (stepId: string) => {
+    setSelectedVersionId(stepId);
 
     // Find the version to get the productListDetailsId
-    const selectedVersion = versions.find(v => v.versionId.toString() === versionId);
+    const selectedVersion = versions.find(v => v.versionId.toString() === stepId);
     if (selectedVersion) {
       handleFetchProductItems(selectedVersion.productListDetailsId);
     }
@@ -130,10 +131,9 @@ export default function DeliveryVersionsListPage({ shopId, date, companyId }: De
         <div className="mb-6">
           <div className="flex flex-wrap gap-2 mb-4">
             <StepTimeline
-                steps={deliverySteps}
-                selectedStepType={selectedStepType}
+                steps={timelineSteps}
                 onSelectStep={handleSelectStep}
-                groupedSteps={groupedVersions}
+                groupedSteps={groupedSteps}
             />
           </div>
         </div>
