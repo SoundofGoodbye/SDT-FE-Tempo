@@ -1,11 +1,11 @@
-// ProductListImportModal.tsx
 import React, { useState, useCallback } from 'react';
 import { useDropzone } from 'react-dropzone';
-import { Upload, FileSpreadsheet, AlertCircle } from 'lucide-react';
+import { Upload, FileSpreadsheet, AlertCircle, CheckCircle } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Alert, AlertDescription } from '@/components/ui/alert';
-import {getStoredTokens, getUserEmail} from "@/lib/api/auth-service";
+import { getStoredTokens, getUserEmail } from "@/lib/api/auth-service";
+import { useToast } from '@/components/notifications/toast-system';
 
 interface ProductListImportModalProps {
   isOpen: boolean;
@@ -38,18 +38,33 @@ export const ProductListImportModal: React.FC<ProductListImportModalProps> = ({
   const [importing, setImporting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [importResults, setImportResults] = useState<ImportResponse | null>(null);
+  const { showToast } = useToast();
 
   const onDrop = useCallback((acceptedFiles: File[], rejectedFiles: any[]) => {
     if (rejectedFiles.length > 0) {
-      setError('Invalid file type. Please select an Excel or CSV file.');
+      const rejectedFile = rejectedFiles[0];
+      const errorMessage = rejectedFile.errors?.[0]?.message || 'Invalid file type';
+
+      setError(`${rejectedFile.file.name}: ${errorMessage}`);
+      showToast({
+        type: 'error',
+        title: 'Invalid File',
+        description: 'Please select an Excel (.xlsx, .xls) or CSV file.',
+      });
       return;
     }
 
     if (acceptedFiles.length > 0) {
       setSelectedFile(acceptedFiles[0]);
       setError(null);
+      showToast({
+        type: 'success',
+        title: 'File Selected',
+        description: `${acceptedFiles[0].name} ready for import`,
+        duration: 3000
+      });
     }
-  }, []);
+  }, [showToast]);
 
   const { getRootProps, getInputProps, isDragActive } = useDropzone({
     onDrop,
@@ -67,6 +82,14 @@ export const ProductListImportModal: React.FC<ProductListImportModalProps> = ({
 
     setImporting(true);
     setError(null);
+
+    // Show importing notification
+    showToast({
+      type: 'info',
+      title: 'Importing File',
+      description: `Processing ${selectedFile.name}...`,
+      duration: 0 // Don't auto-dismiss
+    });
 
     const formData = new FormData();
     formData.append('file', selectedFile);
@@ -92,15 +115,51 @@ export const ProductListImportModal: React.FC<ProductListImportModalProps> = ({
       const result: ImportResponse = await response.json();
       setImportResults(result);
 
-      if (result.errorCount === 0) {
+      // Show appropriate notification based on results
+      if (result.errorCount === 0 && (!result.warnings || result.warnings.length === 0)) {
+        showToast({
+          type: 'success',
+          title: 'Import Successful',
+          description: `Successfully imported ${result.successCount} products to list #${result.productListNumber}`,
+          action: {
+            label: 'View List',
+            onClick: () => {
+              // Navigate to the product list
+              window.location.href = `/product-lists/${result.productListDetailsId}`;
+            }
+          }
+        });
+
         setTimeout(() => {
           onImportSuccess();
           handleClose();
         }, 2000);
+      } else if (result.errorCount > 0) {
+        showToast({
+          type: 'error',
+          title: 'Import Failed',
+          description: `${result.errorCount} products failed to import. Check the details below.`,
+        });
+      } else if (result.warnings && result.warnings.length > 0) {
+        showToast({
+          type: 'warning',
+          title: 'Import Completed with Warnings',
+          description: `Imported ${result.successCount} products with ${result.warnings.length} warnings.`,
+        });
       }
 
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Import failed');
+      const errorMessage = err instanceof Error ? err.message : 'Import failed';
+      setError(errorMessage);
+      showToast({
+        type: 'error',
+        title: 'Import Failed',
+        description: errorMessage,
+        action: {
+          label: 'Retry',
+          onClick: handleImport
+        }
+      });
     } finally {
       setImporting(false);
     }
@@ -117,6 +176,23 @@ export const ProductListImportModal: React.FC<ProductListImportModalProps> = ({
     setImportResults(null);
     setSelectedFile(null);
     setError(null);
+    showToast({
+      type: 'info',
+      title: 'Ready for New Import',
+      description: 'You can now select another file to import.',
+      duration: 3000
+    });
+  };
+
+  const handleRemoveFile = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    setSelectedFile(null);
+    showToast({
+      type: 'info',
+      title: 'File Removed',
+      description: 'Select a new file to continue.',
+      duration: 2000
+    });
   };
 
   return (
@@ -153,10 +229,7 @@ export const ProductListImportModal: React.FC<ProductListImportModalProps> = ({
                         <Button
                             variant="ghost"
                             size="sm"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              setSelectedFile(null);
-                            }}
+                            onClick={handleRemoveFile}
                             className="mt-3 text-red-600 hover:text-red-700"
                         >
                           Remove file
@@ -227,6 +300,22 @@ const ImportResults: React.FC<{
 }> = ({ results, onClose, onImportAnother }) => {
   const hasWarnings = results.warnings && results.warnings.length > 0;
   const isCompleteSuccess = results.errorCount === 0 && !hasWarnings;
+  const { showToast } = useToast();
+
+  const handleCopyWarnings = () => {
+    const warningsText = results.warnings
+        .map(w => `Row ${w.rowNumber}: ${w.productName} - ${w.message}`)
+        .join('\n');
+
+    navigator.clipboard.writeText(warningsText).then(() => {
+      showToast({
+        type: 'success',
+        title: 'Copied to Clipboard',
+        description: 'Warning details have been copied.',
+        duration: 2000
+      });
+    });
+  };
 
   return (
       <div className="p-4 space-y-4">
@@ -235,7 +324,11 @@ const ImportResults: React.FC<{
           w-12 h-12 rounded-full flex items-center justify-center flex-shrink-0
           ${isCompleteSuccess ? 'bg-green-100' : 'bg-yellow-100'}
         `}>
-            <AlertCircle className={`w-6 h-6 ${isCompleteSuccess ? 'text-green-600' : 'text-yellow-600'}`} />
+            {isCompleteSuccess ? (
+                <CheckCircle className="w-6 h-6 text-green-600" />
+            ) : (
+                <AlertCircle className="w-6 h-6 text-yellow-600" />
+            )}
           </div>
           <div className="flex-1">
             <h3 className="font-semibold text-lg">
@@ -250,7 +343,17 @@ const ImportResults: React.FC<{
 
         {hasWarnings && (
             <div className="border rounded-lg p-3 bg-yellow-50 border-yellow-200">
-              <h4 className="text-sm font-medium mb-2">Import Warnings:</h4>
+              <div className="flex items-center justify-between mb-2">
+                <h4 className="text-sm font-medium">Import Warnings:</h4>
+                <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={handleCopyWarnings}
+                    className="text-xs"
+                >
+                  Copy All
+                </Button>
+              </div>
               <div className="max-h-48 overflow-y-auto space-y-1">
                 {results.warnings.map((warning, index) => (
                     <div

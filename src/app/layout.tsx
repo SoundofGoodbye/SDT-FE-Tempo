@@ -6,6 +6,7 @@ import { Inter } from "next/font/google";
 import Script from "next/script";
 import { Suspense, ReactNode } from "react";
 import "./globals.css";
+import {ToastProvider} from "@/components/notifications/toast-system";
 
 const inter = Inter({ subsets: ["latin"] });
 
@@ -32,9 +33,11 @@ export default function RootLayout({
           <Navigation />
         </Suspense>
         <div className="pt-16">
-          <AuthWrapper>
-            {children}
-          </AuthWrapper>
+          <ToastProvider position="top-right" maxToasts={5}>
+            <AuthWrapper>
+              {children}
+            </AuthWrapper>
+          </ToastProvider>
         </div>
         <TempoInit />
       </body>
