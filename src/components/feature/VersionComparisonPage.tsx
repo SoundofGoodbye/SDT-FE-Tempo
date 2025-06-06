@@ -5,11 +5,11 @@ import { useParams, useRouter } from "next/navigation";
 import { Button } from "../ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "../ui/card";
 import VersionSelector from "../ui/VersionSelector";
-import type { DiffItem } from "@/types/delivery";
+import type { DiffItem, ProductItemSummary, Version } from "@/types/delivery";
 import { ArrowLeft, Download, Settings } from "lucide-react";
 import { apiClient, ApiResponse } from "@/lib/api/api-client";
-import type { ProductItemSummary, Version } from "@/types/delivery";
 import DiffTable from "@/components/feature/DiffTable";
+import { useDeliveryWorkflow } from "@/hooks/useDeliveryWorkflow";
 import {
   DropdownMenu,
   DropdownMenuCheckboxItem,
@@ -47,14 +47,31 @@ export default function VersionComparisonPage() {
   const router = useRouter();
   const shopId = params.shopId as string;
   const date = params.date as string;
+  const companyId = "1"; // Replace with actual company ID from context/auth
 
-  const [versions, setVersions] = useState<Version[]>([]);
+  // Use the enhanced delivery workflow hook
+  const {
+    versions: workflowVersions,
+    versionsLoading,
+    versionsError
+  } = useDeliveryWorkflow(parseInt(companyId), parseInt(shopId), date);
+
+  // Convert workflow versions to the Version format expected by this component
+  const versions: Version[] = React.useMemo(() => {
+    return workflowVersions.map((item) => ({
+      id: item.versionId.toString(),
+      stepType: item.deliveryStepName,
+      timestamp: new Date().toISOString(), // Using current date as timestamp is not provided in the API
+      productListDetailsId: item.productListDetailsId.toString(),
+      stepDescription: item.stepDescription || null,
+    }));
+  }, [workflowVersions]);
+
   const [versionA, setVersionA] = useState<string>("");
   const [versionB, setVersionB] = useState<string>("");
   const [itemsA, setItemsA] = useState<ProductItemSummary[]>([]);
   const [itemsB, setItemsB] = useState<ProductItemSummary[]>([]);
   const [diffData, setDiffData] = useState<DiffItem[]>([]);
-  const [isLoadingVersions, setIsLoadingVersions] = useState(true);
   const [isLoadingDetails, setIsLoadingDetails] = useState(false);
   const [columns, setColumns] = useState<ColumnConfig[]>(DEFAULT_COLUMNS);
 
@@ -98,40 +115,6 @@ export default function VersionComparisonPage() {
     setColumns(DEFAULT_COLUMNS.map(col => ({ ...col })));
   };
 
-  // Fetch versions metadata on mount
-  useEffect(() => {
-    const fetchVersions = async () => {
-      try {
-        setIsLoadingVersions(true);
-        const companyId = "1"; // Replace with actual company ID from context/auth
-        const data = await apiClient.get<ApiResponse<any[]>>(
-            `company/${companyId}/productList?shopId=${shopId}&date=${date}`
-        );
-        // Extract the payload from the API response
-        if (data && data.payload && Array.isArray(data.payload)) {
-          // Map the payload to match the Version interface
-          const mappedVersions = data.payload.map((item: any) => ({
-            id: item.versionId.toString(),
-            stepType: item.deliveryStepName,
-            timestamp: new Date().toISOString(), // Using current date as timestamp is not provided in the API
-            productListDetailsId: item.productListDetailsId.toString(),
-            stepDescription: item.stepDescription || null,
-          }));
-          setVersions(mappedVersions);
-        } else {
-          console.error("Invalid API response format:", data);
-          setVersions([]);
-        }
-      } catch (error) {
-        console.error("Error fetching versions:", error);
-      } finally {
-        setIsLoadingVersions(false);
-      }
-    };
-
-    fetchVersions();
-  }, [shopId, date]);
-
   // Fetch details when both versions are selected
   useEffect(() => {
     const fetchVersionDetails = async () => {
@@ -141,8 +124,6 @@ export default function VersionComparisonPage() {
 
       setIsLoadingDetails(true);
       try {
-        const companyId = "1"; // Replace with actual company ID from context/auth
-
         // Fetch both version details in parallel
         const [dataA, dataB] = await Promise.all([
           apiClient.get<ApiResponse<any[]>>(
@@ -153,8 +134,8 @@ export default function VersionComparisonPage() {
           ),
         ]);
 
-        // Map API response to ProductItem format
-        const mappedItemsA = dataA.payload.map((item: any) => ({
+        // Map API response to ProductItemSummary format
+        const mappedItemsA: ProductItemSummary[] = dataA.payload.map((item: any) => ({
           productId: item.itemId.toString(),
           name: item.itemName,
           quantity: item.quantity,
@@ -163,7 +144,7 @@ export default function VersionComparisonPage() {
           sellingPrice: item.sellingPrice
         }));
 
-        const mappedItemsB = dataB.payload.map((item: any) => ({
+        const mappedItemsB: ProductItemSummary[] = dataB.payload.map((item: any) => ({
           productId: item.itemId.toString(),
           name: item.itemName,
           quantity: item.quantity,
@@ -185,7 +166,7 @@ export default function VersionComparisonPage() {
     };
 
     fetchVersionDetails();
-  }, [versionA, versionB, selectedVersionA, selectedVersionB]);
+  }, [versionA, versionB, selectedVersionA, selectedVersionB, companyId]);
 
   // Create diff data from both item lists
   const createDiffData = (itemsA: ProductItemSummary[], itemsB: ProductItemSummary[]) => {
@@ -388,6 +369,17 @@ export default function VersionComparisonPage() {
     router.push(`/shops/${shopId}/deliveries/${date}/versions`);
   };
 
+  // Handle error state
+  if (versionsError) {
+    return (
+        <div className="container mx-auto py-6">
+          <div className="flex justify-center items-center h-64">
+            <p className="text-red-500">Error loading versions: {versionsError}</p>
+          </div>
+        </div>
+    );
+  }
+
   return (
       <div className="container mx-auto py-6 space-y-6">
         <div className="flex items-center justify-between">
@@ -452,14 +444,14 @@ export default function VersionComparisonPage() {
                   versions={versions}
                   value={versionA}
                   onChange={setVersionA}
-                  disabled={isLoadingVersions}
+                  disabled={versionsLoading}
               />
               <VersionSelector
                   label="Compare B"
                   versions={versions}
                   value={versionB}
                   onChange={setVersionB}
-                  disabled={isLoadingVersions}
+                  disabled={versionsLoading}
               />
             </div>
 
@@ -478,7 +470,7 @@ export default function VersionComparisonPage() {
             ) : (
                 <div className="flex justify-center items-center h-64 bg-muted/20 rounded-md">
                   <p className="text-muted-foreground">
-                    {isLoadingVersions
+                    {versionsLoading
                         ? "Loading versions..."
                         : "Select two versions to compare"}
                   </p>

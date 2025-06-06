@@ -21,6 +21,15 @@ export interface ProductListVersionModel {
     [key: string]: any;
 }
 
+// Used for version lists and selection
+export interface Version {
+    id: string;
+    stepType: string;
+    timestamp: string;
+    productListDetailsId: string;
+    stepDescription: string | null;
+}
+
 export interface ProductListDetailsProps {
     shopId?: number;
     shopName?: string;
@@ -48,15 +57,6 @@ export interface ProductItem {
     notes: string;
     unitPrice: number;
     sellingPrice: number;
-}
-
-// Used for version lists and selection
-export interface Version {
-    id: string;
-    stepType: string;
-    timestamp: string;
-    productListDetailsId: string;
-    stepDescription: string | null;
 }
 
 export interface DiffItem {
