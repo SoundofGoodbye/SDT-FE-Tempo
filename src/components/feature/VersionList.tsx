@@ -4,6 +4,7 @@ import {
 } from "@/components/ui/table";
 import {Button} from "@/components/ui/button";
 import { apiClient } from "@/lib/api/api-client";
+import { useToast } from "@/components/notifications/toast-system";
 
 import type { ProductItem } from "@/types/delivery";
 
@@ -37,10 +38,19 @@ export const VersionList: React.FC<VersionListProps> = ({
 
     const [isDownloading, setIsDownloading] = useState(false);
     const [downloadError, setDownloadError] = useState<string | null>(null);
+    const { showToast } = useToast();
 
     const handleDownloadCsvFile = async () => {
         setIsDownloading(true);
         setDownloadError(null);
+
+        // Show downloading notification
+        showToast({
+            type: 'info',
+            title: 'Downloading CSV',
+            description: `Preparing ${productListDetailsId ? `version ${productListDetailsId}` : 'latest version'}...`,
+            duration: 0 // Don't auto-dismiss
+        });
 
         try {
             // Build the URL with optional productListDetailsId parameter
@@ -88,6 +98,14 @@ export const VersionList: React.FC<VersionListProps> = ({
 
             console.log('CSV file downloaded successfully');
 
+            // Show success notification
+            showToast({
+                type: 'success',
+                title: 'CSV Downloaded',
+                description: `Successfully downloaded ${filename}`,
+                duration: 3000
+            });
+
         } catch (error: any) {
             console.error('Error downloading CSV file:', error);
 
@@ -95,7 +113,13 @@ export const VersionList: React.FC<VersionListProps> = ({
 
             if (error.response) {
                 // Server responded with error status
-                errorMessage = `Download failed: ${error.response.status} ${error.response.statusText}`;
+                if (error.response.status === 404) {
+                    errorMessage = 'Product list not found';
+                } else if (error.response.status === 403) {
+                    errorMessage = 'You do not have permission to download this file';
+                } else {
+                    errorMessage = `Download failed: ${error.response.status} ${error.response.statusText}`;
+                }
             } else if (error.request) {
                 // Request was made but no response received
                 errorMessage = 'Network error - please check your connection';
@@ -105,6 +129,17 @@ export const VersionList: React.FC<VersionListProps> = ({
             }
 
             setDownloadError(errorMessage);
+
+            // Show error notification
+            showToast({
+                type: 'error',
+                title: 'Download Failed',
+                description: errorMessage,
+                action: {
+                    label: 'Retry',
+                    onClick: handleDownloadCsvFile
+                }
+            });
 
             // Clear error after 5 seconds
             setTimeout(() => setDownloadError(null), 5000);
