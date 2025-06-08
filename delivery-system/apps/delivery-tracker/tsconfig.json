@@ -1,0 +1,49 @@
+{
+  "extends": "../../tsconfig.json",
+  "compilerOptions": {
+    "baseUrl": ".",
+    "paths": {
+      "@/*": [
+        "./src/*"
+      ],
+      "@delivery-system/ui-components": [
+        "../../packages/ui-components/src"
+      ],
+      "@delivery-system/types": [
+        "../../packages/types/src"
+      ],
+      "@delivery-system/hooks": [
+        "../../packages/hooks/src"
+      ],
+      "@delivery-system/api-client": [
+        "../../packages/api-client/src"
+      ],
+      "@delivery-system/auth": [
+        "../../packages/auth/src"
+      ],
+      "@delivery-system/state": [
+        "../../packages/state/src"
+      ],
+      "@delivery-system/utils": [
+        "../../packages/utils/src"
+      ],
+      "@delivery-system/config": [
+        "../../packages/config/src"
+      ]
+    },
+    "plugins": [
+      {
+        "name": "next"
+      }
+    ]
+  },
+  "include": [
+    "**/*.ts",
+    "**/*.tsx",
+    "next-env.d.ts",
+    ".next/types/**/*.ts"
+  ],
+  "exclude": [
+    "node_modules"
+  ]
+}
