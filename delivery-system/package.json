@@ -1,0 +1,40 @@
+{
+  "name": "delivery-system",
+  "version": "0.0.1",
+  "private": true,
+  "scripts": {
+    "dev": "turbo run dev",
+    "build": "turbo run build",
+    "start": "turbo run start",
+    "lint": "turbo run lint",
+    "type-check": "turbo run type-check",
+    "clean": "turbo run clean && rm -rf node_modules",
+    "clean:all": "find . -name 'node_modules' -type d -prune -exec rm -rf '{}' + && find . -name '.next' -type d -prune -exec rm -rf '{}' + && find . -name '.turbo' -type d -prune -exec rm -rf '{}' +"
+  },
+  "devDependencies": {
+    "glob": "^11.0.0",
+    "turbo": "^2.5.4",
+    "typescript": "^5.8.3"
+  },
+  "engines": {
+    "node": ">=22.16.0",
+    "pnpm": ">=10.0.0"
+  },
+  "pnpm": {
+    "overrides": {
+      "@types/react": "^19.1.0",
+      "@types/react-dom": "^19.1.0",
+      "react": "^19.1.0",
+      "react-dom": "^19.1.0",
+      "typescript": "^5.8.3"
+    },
+    "ignoredBuiltDependencies": [
+      "unrs-resolver"
+    ],
+    "onlyBuiltDependencies": [
+      "@tailwindcss/oxide",
+      "sharp"
+    ]
+  },
+  "packageManager": "pnpm@10.11.1"
+}
