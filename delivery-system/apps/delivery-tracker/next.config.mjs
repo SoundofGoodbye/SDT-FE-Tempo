@@ -1,4 +1,4 @@
-// delivery-system/apps/delivery-tracker/next.config.js
+// delivery-system/apps/delivery-tracker/next.config.mjs
 /** @type {import('next').NextConfig} */
 
 const nextConfig = {
