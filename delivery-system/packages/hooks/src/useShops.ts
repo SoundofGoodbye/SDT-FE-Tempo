@@ -1,6 +1,7 @@
 // delivery-system/packages/hooks/src/useShops.ts
 import { useState, useEffect, useCallback } from 'react';
-import { apiClient, ApiResponse } from '@delivery-system/api-client';
+import { shopService } from '@delivery-system/api-client';
+import type { ShopResponse } from '@delivery-system/types';
 
 export interface Shop {
     id: number;
@@ -32,13 +33,17 @@ export function useShops(companyId?: number): UseShopsResult {
             setLoading(true);
             setError(null);
 
-            const data = await apiClient.get<ApiResponse<Shop[]>>(
-                `company/${companyId}/shop`
-            );
+            const shopsData = await shopService.getAllShopsByCompany(companyId);
 
-            // Extract shops from payload and ensure it's always an array
-            const shopsData = data?.payload || [];
-            setShops(Array.isArray(shopsData) ? shopsData : []);
+            // The service already returns ShopExtended[], but we only need the base fields
+            const mappedShops: Shop[] = shopsData.map(shop => ({
+                id: shop.id,
+                shopName: shop.shopName,
+                locationId: shop.locationId,
+                companyId: shop.companyId
+            }));
+
+            setShops(mappedShops);
         } catch (err: any) {
             console.error('Failed to fetch shops:', err);
             setError('Failed to load shop locations');

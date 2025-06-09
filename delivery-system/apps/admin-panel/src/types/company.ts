@@ -1,22 +1,7 @@
 //delivery-system/apps/admin-panel/src/types/company.ts
-export interface Company {
-  id: string;
-  name: string;
-  email: string;
-  phone: string;
-  address: string;
-  website?: string;
-  description?: string;
-  shopsCount: number;
-  usersCount: number;
-  productsCount: number;
-  revenue: number;
-  plan: "Pro" | "Basic";
-  status: "Active" | "Inactive" | "Suspended";
-  createdAt: string;
-  updatedAt: string;
-}
 
+// Re-export shared types for convenience
+export type { Company, Shop, Account } from '@delivery-system/types';
 export interface CompanyFormData {
   name: string;
   email: string;
@@ -39,16 +24,7 @@ export interface CompanySortOption {
   direction: "asc" | "desc";
 }
 
-export interface Shop {
-  id: string;
-  name: string;
-  address: string;
-  status: "Active" | "Inactive";
-  companyId: string;
-  createdAt: string;
-  updatedAt: string;
-}
-
+// Shop related UI types
 export interface ShopFormData {
   name: string;
   address: string;
@@ -65,19 +41,7 @@ export interface ShopSortOption {
   direction: "asc" | "desc";
 }
 
-export interface Account {
-  id: string;
-  name: string;
-  email: string;
-  role: "Admin" | "Manager" | "Shop Assistant" | "Delivery";
-  status: "Active" | "Suspended";
-  companyId?: string;
-  companyName?: string;
-  lastActive: string;
-  createdAt: string;
-  updatedAt: string;
-}
-
+// Account related UI types
 export interface AccountFormData {
   name: string;
   email: string;
