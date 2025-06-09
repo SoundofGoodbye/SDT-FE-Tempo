@@ -1,4 +1,4 @@
-// api-client.ts - API client with automatic token refresh
+// delivery-system/packages/api-client/src/client.ts
 import { getApiBaseUrl, isTokenExpired, refreshAccessToken, logout, getStoredTokens } from "./services";
 
 export interface ApiResponse<T> {
