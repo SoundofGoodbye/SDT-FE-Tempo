@@ -205,7 +205,7 @@ export default function Sidebar() {
           </Button>
         </div>
         <div className="p-2 border-b">
-          <UserDropdown onLogout={handleLogout} isCollapsed={isCollapsed} />
+          <UserDropdown isCollapsed={isCollapsed} />
         </div>
         <nav className="flex-1 overflow-auto py-4">
           <ul className="space-y-1 px-2">

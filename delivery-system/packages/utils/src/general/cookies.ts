@@ -1,4 +1,4 @@
-// src/lib/utils/cookies.ts
+// delivery-system/packages/utils/src/general/cookies.ts
 import {parse, serialize} from 'cookie';
 
 export interface CookieOptions {
