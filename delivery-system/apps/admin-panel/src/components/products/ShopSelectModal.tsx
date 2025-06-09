@@ -21,7 +21,7 @@ interface ShopSelectModalProps {
   onClose: () => void;
   onConfirm: (shopIds: string[]) => void;
   shops: Shop[];
-  product: ProductActivation | null;
+  product: ProductActivation | null | undefined;
 }
 
 export default function ShopSelectModal({

@@ -1,3 +1,4 @@
+//delivery-system/apps/delivery-tracker/src/components/feature/DeliveryDashboard.tsx
 "use client";
 
 import React, { useState, useEffect } from "react";
@@ -15,13 +16,7 @@ import { ProductListDetails } from "@delivery-system/ui-components";
 import { apiClient, ApiResponse } from '@delivery-system/api-client';
 import { getUserEmail, getCompanyId } from '@delivery-system/api-client';
 import { dashboardLabels, getDateLabel, getSubtitleMessage } from '@delivery-system/config';
-
-interface Shop {
-  id: number;
-  shopName: string;
-  locationId: number;
-  companyId: number;
-}
+import { useShops, Shop } from '@delivery-system/hooks';
 
 interface DeliveryInfo {
   id: number;
@@ -57,40 +52,22 @@ export function DeliveryDashboard(props: DeliveryDashboardProps) {
       ).join(' ')
       : username;
 
-  const [shops, setShops] = useState<Shop[]>([]);
-  const [deliveries, setDeliveries] = useState<Record<number, DeliveryInfo>>(
-      {},
-  );
+  // Use the shared shops hook
+  const { shops, loading: shopsLoading, error: shopsError } = useShops(companyId);
+
+  const [deliveries, setDeliveries] = useState<Record<number, DeliveryInfo>>({});
   const [selectedDate, setSelectedDate] = useState<Date>(new Date());
   const [selectedShop, setSelectedShop] = useState<Shop | null>(null);
-  const [loading, setLoading] = useState<boolean>(true);
-  const [error, setError] = useState<string | null>(null);
+  const [deliveriesLoading, setDeliveriesLoading] = useState<boolean>(false);
+  const [deliveriesError, setDeliveriesError] = useState<string | null>(null);
   const [datesWithDeliveries, setDatesWithDeliveries] = useState<Date[]>([]);
-
-  // Fetch shops for the company
-  useEffect(() => {
-    const fetchShops = async () => {
-      try {
-        setLoading(true);
-        const data = await apiClient.get<ApiResponse<Shop[]>>(`company/${companyId}/shop`);
-        // Extract shops from payload and ensure it's always an array
-        const shopsData = data?.payload || [];
-        setShops(Array.isArray(shopsData) ? shopsData : []);
-        setLoading(false);
-      } catch (err) {
-        setError(dashboardLabels.errors.fetchShops);
-        setLoading(false);
-      }
-    };
-
-    fetchShops();
-  }, [companyId]);
 
   // Fetch all deliveries for the month and mark dates with deliveries
   useEffect(() => {
     const fetchMonthDeliveries = async () => {
       try {
-        setLoading(true);
+        setDeliveriesLoading(true);
+        setDeliveriesError(null);
 
         // Fetch deliveries for each shop for the selected date
         const formattedDate = format(selectedDate, "yyyy-MM-dd");
@@ -131,16 +108,16 @@ export function DeliveryDashboard(props: DeliveryDashboardProps) {
         }
 
         setDeliveries(deliveryData);
-        setLoading(false);
+        setDeliveriesLoading(false);
 
         // Clear the error if we reached here, regardless of whether there were any deliveries.
         // Do NOT treat "no deliveries" as an error!
-        setError(null);
+        setDeliveriesError(null);
       } catch (err) {
         // This catch block will only be triggered for errors in the calendar API call
         // or other errors outside the shop loop
-        setError(dashboardLabels.errors.fetchDeliveries);
-        setLoading(false);
+        setDeliveriesError(dashboardLabels.errors.fetchDeliveries);
+        setDeliveriesLoading(false);
       }
     };
 
@@ -180,6 +157,10 @@ export function DeliveryDashboard(props: DeliveryDashboardProps) {
 
   // Calculate if there are any deliveries for the selected date
   const hasDeliveries = Object.keys(deliveries).length > 0;
+
+  // Combine loading states
+  const loading = shopsLoading || deliveriesLoading;
+  const error = shopsError || deliveriesError;
 
   return (
       <div className="bg-background w-full p-6">

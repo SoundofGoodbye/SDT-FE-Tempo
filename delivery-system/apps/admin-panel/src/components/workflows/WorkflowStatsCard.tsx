@@ -1,6 +1,7 @@
+//delivery-system/apps/admin-panel/src/components/workflows/WorkflowStatsCard.tsx
 "use client";
 
-import { WorkflowStats } from "@/types/workflow";
+import { WorkflowStats } from "@delivery-system/types";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";

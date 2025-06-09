@@ -1,4 +1,4 @@
-// apps/delivery-tracker/src/hooks/useAuth.ts
+// apps/admin-panel/src/hooks/useAuth.ts
 import { useRouter } from "next/navigation";
 import { useAuth as useAuthBase } from "@delivery-system/hooks";
 
