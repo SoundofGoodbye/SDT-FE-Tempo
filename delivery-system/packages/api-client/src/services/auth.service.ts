@@ -1,5 +1,6 @@
 // delivery-system/packages/api-client/src/services/auth.service.ts
 import { cookieUtils, authCookies } from "@delivery-system/utils";
+import { ROLES, PERMISSIONS, ROLE_PERMISSIONS, type Role, type Permission } from "../../../auth/src/permissions";
 
 export interface AuthResponse {
   accessToken: string;
@@ -36,6 +37,48 @@ export type NavigationCallback = (path: string) => void;
 
 export const getApiBaseUrl = (): string => {
   return process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:8081";
+};
+
+// Export permissions for use in apps
+export { ROLES, PERMISSIONS, type Role, type Permission };
+
+// Check if user has specific permission
+export const hasPermission = (permission: Permission): boolean => {
+  const roles = getUserRoles();
+
+  for (const role of roles) {
+    const permissions = ROLE_PERMISSIONS[role as Role];
+    if (permissions && permissions.includes(permission)) {
+      return true;
+    }
+  }
+
+  return false;
+};
+
+// Check if user has any of the permissions
+export const hasAnyPermission = (permissions: Permission[]): boolean => {
+  return permissions.some(permission => hasPermission(permission));
+};
+
+// Check if user has all permissions
+export const hasAllPermissions = (permissions: Permission[]): boolean => {
+  return permissions.every(permission => hasPermission(permission));
+};
+
+// Get all permissions for current user
+export const getUserPermissions = (): Permission[] => {
+  const roles = getUserRoles();
+  const permissions = new Set<Permission>();
+
+  for (const role of roles) {
+    const rolePermissions = ROLE_PERMISSIONS[role as Role];
+    if (rolePermissions) {
+      rolePermissions.forEach(p => permissions.add(p));
+    }
+  }
+
+  return Array.from(permissions);
 };
 
 export const parseJwt = (token: string) => {

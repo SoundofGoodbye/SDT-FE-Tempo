@@ -1,209 +1,249 @@
-import { useState, useEffect } from "react";
+// delivery-system/apps/admin-panel/src/hooks/useWorkflow.ts
+import { useState, useCallback, useMemo } from 'react';
 import {
-  Workflow,
+  useWorkflowConfiguration,
+  useWorkflowConfigMutations
+} from '@delivery-system/hooks';
+import {
+  WorkflowUI,
   WorkflowStats,
-  WorkflowMutations,
-  WorkflowStep,
-} from "@/types/workflow";
+  WorkflowStepUI,
+  WorkflowConnection
+} from '@delivery-system/types';
 
-// Mock workflow data
-const mockWorkflow: Workflow = {
-  id: "workflow-1",
-  companyId: "company-1",
-  name: "Standard Delivery Workflow",
-  isActive: true,
-  createdAt: "2024-01-01T00:00:00Z",
-  updatedAt: "2024-01-15T00:00:00Z",
-  steps: [
-    {
-      id: "start",
-      name: "Start",
-      color: "#10b981",
-      position: { x: 50, y: 200 },
-      notifications: { shopAssistant: false, customerSms: false },
-      stats: { avgTime: 0, successRate: 100 },
-    },
-    {
-      id: "step-1",
-      name: "Order Received",
-      color: "#3b82f6",
-      position: { x: 200, y: 200 },
-      notifications: { shopAssistant: true, customerSms: true },
-      stats: { avgTime: 5, successRate: 98.5 },
-    },
-    {
-      id: "step-2",
-      name: "Preparation",
-      color: "#f59e0b",
-      position: { x: 350, y: 200 },
-      notifications: { shopAssistant: true, customerSms: false },
-      stats: { avgTime: 25, successRate: 95.2 },
-    },
-    {
-      id: "step-3",
-      name: "Ready for Pickup",
-      color: "#8b5cf6",
-      position: { x: 500, y: 200 },
-      notifications: { shopAssistant: true, customerSms: true },
-      stats: { avgTime: 45, successRate: 92.8 },
-    },
-    {
-      id: "step-4",
-      name: "Out for Delivery",
-      color: "#ef4444",
-      position: { x: 650, y: 200 },
-      notifications: { shopAssistant: false, customerSms: true },
-      stats: { avgTime: 30, successRate: 97.1 },
-    },
-    {
-      id: "end",
-      name: "Delivered",
-      color: "#10b981",
-      position: { x: 800, y: 200 },
-      notifications: { shopAssistant: false, customerSms: true },
-      stats: { avgTime: 0, successRate: 100 },
-    },
-  ],
-  connections: [
-    {
-      id: "conn-1",
-      fromStepId: "start",
-      toStepId: "step-1",
-      avgTransitionTime: 2,
-      isBottleneck: false,
-    },
-    {
-      id: "conn-2",
-      fromStepId: "step-1",
-      toStepId: "step-2",
-      avgTransitionTime: 8,
-      isBottleneck: false,
-    },
-    {
-      id: "conn-3",
-      fromStepId: "step-2",
-      toStepId: "step-3",
-      avgTransitionTime: 15,
-      isBottleneck: true,
-    },
-    {
-      id: "conn-4",
-      fromStepId: "step-3",
-      toStepId: "step-4",
-      avgTransitionTime: 12,
-      isBottleneck: false,
-    },
-    {
-      id: "conn-5",
-      fromStepId: "step-4",
-      toStepId: "end",
-      avgTransitionTime: 5,
-      isBottleneck: false,
-    },
-  ],
-};
+// Admin-specific color palette for steps
+const ADMIN_STEP_COLORS = [
+  '#10b981', // Green
+  '#3b82f6', // Blue
+  '#f59e0b', // Yellow
+  '#8b5cf6', // Purple
+  '#ef4444', // Red
+  '#6366f1', // Indigo
+];
 
-const mockStats: WorkflowStats = {
-  totalWorkflows: 1,
-  avgCompletionTime: 105,
-  successRate: 94.7,
-  bottlenecks: [
-    {
-      stepId: "step-3",
-      stepName: "Ready for Pickup",
-      avgDelay: 15,
-    },
-  ],
-};
-
+/**
+ * Admin panel specific workflow hook that adds visual/UI enhancements
+ * This builds on top of the shared configuration hook
+ */
 export function useWorkflow(companyId: string, shopId?: string) {
-  const [workflow, setWorkflow] = useState<Workflow | null>(null);
-  const [stats, setStats] = useState<WorkflowStats | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  const companyIdNum = parseInt(companyId) || 0;
+  const shopIdNum = shopId ? parseInt(shopId) : undefined;
 
-  useEffect(() => {
-    if (!companyId) {
-      setLoading(false);
-      return;
-    }
+  // Local state for optimistic updates
+  const [localWorkflow, setLocalWorkflow] = useState<WorkflowUI | null>(null);
 
-    setLoading(true);
-    // Simulate API call
-    setTimeout(() => {
-      // Create a copy of the workflow with shop-specific modifications if needed
-      const workflowCopy = {
-        ...mockWorkflow,
-        name: shopId
-          ? `${mockWorkflow.name} - Shop Specific`
-          : mockWorkflow.name,
-        id: shopId ? `${mockWorkflow.id}-${shopId}` : mockWorkflow.id,
-      };
+  // Use shared configuration hook
+  const {
+    steps,
+    loading,
+    error,
+    refetch
+  } = useWorkflowConfiguration({
+    companyId: companyIdNum,
+    shopId: shopIdNum
+  });
 
-      setWorkflow(workflowCopy);
-      setStats(mockStats);
-      setLoading(false);
-    }, 500);
-  }, [companyId, shopId]);
+  // Transform steps into full WorkflowUI with admin-specific enhancements
+  const workflow: WorkflowUI | null = useMemo(() => {
+    if (!steps || steps.length === 0) return null;
 
-  const updateWorkflowState = (updatedWorkflow: Workflow) => {
-    setWorkflow(updatedWorkflow);
-  };
+    // Apply local updates if any
+    const workflowSteps = localWorkflow?.steps || steps;
 
-  return { workflow, stats, loading, error, updateWorkflowState };
-}
+    // Generate admin-specific visual enhancements
+    const enhancedSteps = workflowSteps.map((step, index) => ({
+      ...step,
+      meta: {
+        ...step.meta,
+        // Add color if not set
+        color: step.meta.color || getAdminStepColor(index, workflowSteps.length),
+        // Generate position if not set
+        position: step.meta.position || {
+          x: 150 + (index * 200),
+          y: 200
+        },
+        // Set default notifications if not set
+        notifications: step.meta.notifications || {
+          shopAssistant: index > 0 && index < workflowSteps.length - 1,
+          customerSms: index === 0 || index === workflowSteps.length - 1
+        },
+        // Set default stats if not set
+        stats: step.meta.stats || {
+          avgTime: index === 0 ? 0 : 15 + (index * 5),
+          successRate: 95 - (index * 2)
+        }
+      }
+    }));
 
-export function useWorkflowMutations(): WorkflowMutations & {
-  loading: boolean;
-} {
-  const [loading, setLoading] = useState(false);
+    // Generate visual connections for the admin canvas
+    const connections = generateVisualConnections(enhancedSteps);
 
-  const updateWorkflow = async (workflow: Partial<Workflow>) => {
-    setLoading(true);
-    // Simulate API call
-    await new Promise((resolve) => setTimeout(resolve, 1000));
-    setLoading(false);
-  };
+    return {
+      id: companyIdNum,
+      companyId: companyIdNum,
+      shopId: shopIdNum,
+      name: shopId ? `Shop ${shopId} Workflow` : 'Company Workflow',
+      steps: enhancedSteps,
+      connections,
+      isActive: true,
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString()
+    };
+  }, [steps, localWorkflow, companyIdNum, shopIdNum, shopId]);
 
-  const updateStep = async (stepId: string, step: Partial<WorkflowStep>) => {
-    setLoading(true);
-    // Simulate API call
-    await new Promise((resolve) => setTimeout(resolve, 500));
-    setLoading(false);
-    return step;
-  };
+  // Calculate admin-specific stats for visualization
+  const stats = useMemo(() => {
+    if (!workflow) return null;
+    return calculateAdminWorkflowStats(workflow);
+  }, [workflow]);
 
-  const addStep = async (
-    step: Omit<WorkflowStep, "id">,
-    insertAfterStepId?: string,
-  ) => {
-    setLoading(true);
-    // Simulate API call
-    await new Promise((resolve) => setTimeout(resolve, 500));
-    setLoading(false);
-    return { ...step, id: `step-${Date.now()}` };
-  };
+  // Local state updater for optimistic updates
+  const updateWorkflowState = useCallback((updatedWorkflow: WorkflowUI) => {
+    setLocalWorkflow(updatedWorkflow);
+  }, []);
 
-  const removeStep = async (stepId: string) => {
-    setLoading(true);
-    // Simulate API call
-    await new Promise((resolve) => setTimeout(resolve, 500));
-    setLoading(false);
-  };
-
-  const reorderSteps = async (stepIds: string[]) => {
-    setLoading(true);
-    // Simulate API call
-    await new Promise((resolve) => setTimeout(resolve, 500));
-    setLoading(false);
-  };
+  // Reset local state on refetch
+  const enhancedRefetch = useCallback(async () => {
+    setLocalWorkflow(null);
+    await refetch();
+  }, [refetch]);
 
   return {
-    updateWorkflow,
-    updateStep,
-    addStep,
-    removeStep,
-    reorderSteps,
+    workflow,
+    stats,
     loading,
+    error,
+    updateWorkflowState,
+    refetch: enhancedRefetch
+  };
+}
+
+// Admin-specific helper functions for visual enhancements
+
+function getAdminStepColor(index: number, total: number): string {
+  // Special colors for start and end
+  if (index === 0 || index === total - 1) {
+    return '#10b981'; // Green for start/end
+  }
+
+  // Cycle through admin colors for middle steps
+  return ADMIN_STEP_COLORS[index % ADMIN_STEP_COLORS.length];
+}
+
+function generateVisualConnections(steps: WorkflowStepUI[]): WorkflowConnection[] {
+  const connections: WorkflowConnection[] = [];
+
+  for (let i = 0; i < steps.length - 1; i++) {
+    connections.push({
+      id: `conn-${i}`,
+      fromStepId: steps[i].id,
+      toStepId: steps[i + 1].id,
+      avgTransitionTime: 10 + (i * 5),
+      // Mark middle step as bottleneck for demo purposes
+      isBottleneck: i === Math.floor(steps.length / 2)
+    });
+  }
+
+  return connections;
+}
+
+function calculateAdminWorkflowStats(workflow: WorkflowUI): WorkflowStats {
+  const avgCompletionTime = workflow.steps.reduce(
+      (sum, step) => sum + (step.meta.stats?.avgTime || 0),
+      0
+  );
+
+  const successRate = workflow.steps.length > 0
+      ? workflow.steps.reduce((sum, step) => sum + (step.meta.stats?.successRate || 95), 0) / workflow.steps.length
+      : 0;
+
+  // For admin panel, identify visual bottlenecks
+  const bottleneckStep = workflow.steps.find((_, index) =>
+      index === Math.floor(workflow.steps.length / 2)
+  );
+
+  return {
+    totalWorkflows: 1,
+    avgCompletionTime,
+    successRate,
+    bottlenecks: bottleneckStep ? [{
+      stepId: bottleneckStep.id,
+      stepName: bottleneckStep.customName,
+      avgDelay: 15
+    }] : []
+  };
+}
+
+// Extended mutations hook with admin-specific features
+export function useWorkflowMutations(workflowId?: number) {
+  const companyId = workflowId || 0; // For now, using workflowId as companyId
+  const sharedMutations = useWorkflowConfigMutations(companyId);
+
+  // Admin-specific wrapper for updateStep with additional validation
+  const updateStep = useCallback(async (
+      stepId: number,
+      updates: Partial<WorkflowStepUI>
+  ) => {
+    // Admin-specific validation
+    if (updates.customName && updates.customName.length > 50) {
+      throw new Error('Step name must be less than 50 characters');
+    }
+
+    await sharedMutations.updateStep(stepId, updates);
+  }, [sharedMutations]);
+
+  // Admin-specific wrapper for addStep with default values
+  const addStep = useCallback(async (
+      afterStepId: number,
+      step?: Partial<Omit<WorkflowStepUI, 'id'>>
+  ) => {
+    // Apply admin defaults
+    const defaultStep: Omit<WorkflowStepUI, 'id'> = {
+      stepKey: `step_${Date.now()}`,
+      customName: 'New Step',
+      order: 0, // Will be set by backend
+      metaJson: null,
+      meta: {
+        color: '#6366f1',
+        position: { x: 0, y: 0 }, // Will be recalculated
+        notifications: {
+          shopAssistant: false,
+          customerSms: false
+        },
+        stats: {
+          avgTime: 15,
+          successRate: 95
+        },
+        ...step?.meta
+      },
+      ...step
+    };
+
+    return await sharedMutations.addStep(afterStepId, defaultStep);
+  }, [sharedMutations]);
+
+  return {
+    ...sharedMutations,
+    updateStep,
+    addStep
+  };
+}
+
+// Hook for managing workflow selection in admin panel
+export function useWorkflowSelection(isAdmin: boolean, userCompanyId?: number) {
+  const [selectedCompanyId, setSelectedCompanyId] = useState<string>(
+      !isAdmin && userCompanyId ? userCompanyId.toString() : ''
+  );
+  const [selectedShopId, setSelectedShopId] = useState<string | undefined>(undefined);
+
+  const handleWorkflowChange = useCallback((companyId: string, shopId?: string) => {
+    setSelectedCompanyId(companyId);
+    setSelectedShopId(shopId);
+  }, []);
+
+  return {
+    selectedCompanyId,
+    selectedShopId,
+    handleWorkflowChange
   };
 }

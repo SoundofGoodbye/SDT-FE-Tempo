@@ -1,3 +1,4 @@
+// delivery-system/packages/hooks/src/useDeliveryWorkflow.ts
 import { useEffect, useState, useCallback, useMemo } from "react";
 import { apiClient, ApiResponse } from "@delivery-system/api-client";
 import { ProductListVersionModel, ProductListItemModel, WorkflowStepModel } from "@delivery-system/types";
@@ -16,7 +17,6 @@ export interface WorkflowStep {
 }
 
 export interface UseDeliveryWorkflowResult {
-    // Existing properties - keeping them all
     initialVersion: ProductListVersionModel | null;
     currentVersion: ProductListVersionModel | null;
     productListDetailsNumber: string | null;
