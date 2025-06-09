@@ -1,6 +1,6 @@
 // delivery-system/packages/api-client/src/services/auth.service.ts
 import { cookieUtils, authCookies } from "@delivery-system/utils";
-import { ROLES, PERMISSIONS, ROLE_PERMISSIONS, type Role, type Permission } from "../../../auth/src/permissions";
+import { ROLES, PERMISSIONS, ROLE_PERMISSIONS, type Role, type Permission } from "../../../auth";
 
 export interface AuthResponse {
   accessToken: string;
@@ -36,7 +36,7 @@ export interface RefreshResponse {
 export type NavigationCallback = (path: string) => void;
 
 export const getApiBaseUrl = (): string => {
-  return process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:8081";
+  return process.env.NEXT_PUBLIC_API_BASE_URL || "hui";
 };
 
 // Export permissions for use in apps

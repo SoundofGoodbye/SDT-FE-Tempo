@@ -1,3 +1,4 @@
+//delivery-system/apps/admin-panel/src/components/shops/ShopTable.tsx
 "use client";
 
 import React from "react";

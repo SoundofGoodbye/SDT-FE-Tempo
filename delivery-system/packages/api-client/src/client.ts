@@ -11,6 +11,7 @@ export interface RequestOptions {
   responseType?: 'json' | 'blob' | 'text';
   headers?: Record<string, string>;
   skipAuth?: boolean;
+  params?: Record<string, any>;
 }
 
 export interface BlobResponse {
@@ -58,12 +59,32 @@ async function getAuthHeaders(): Promise<Record<string, string>> {
   return {};
 }
 
+function buildQueryString(params: Record<string, any>): string {
+  const searchParams = new URLSearchParams();
+
+  Object.entries(params).forEach(([key, value]) => {
+    if (value !== undefined && value !== null && value !== '') {
+      searchParams.append(key, String(value));
+    }
+  });
+
+  return searchParams.toString();
+}
+
 async function request<T>(
     endpoint: string,
     options: RequestInit = {},
     extra?: RequestOptions
 ): Promise<T> {
-  const url = `${getApiBaseUrl()}${endpoint.startsWith("/") ? endpoint : `/${endpoint}`}`;
+  // Build URL with query params if provided
+  let url = `${getApiBaseUrl()}${endpoint.startsWith("/") ? endpoint : `/${endpoint}`}`;
+
+  if (extra?.params) {
+    const queryString = buildQueryString(extra.params);
+    if (queryString) {
+      url += `${url.includes('?') ? '&' : '?'}${queryString}`;
+    }
+  }
 
   // Get auth headers unless explicitly skipped
   const authHeaders = extra?.skipAuth ? {} : await getAuthHeaders();

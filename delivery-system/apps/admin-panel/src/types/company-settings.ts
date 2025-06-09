@@ -1,3 +1,4 @@
+//delivery-system/apps/admin-panel/src/types/company-settings.ts
 export interface BusinessRules {
   deliveryStartTime: string;
   deliveryEndTime: string;

@@ -1,6 +1,9 @@
+//delivery-system/apps/admin-panel/src/hooks/useShopList.ts
 "use client";
 
-import { useState, useMemo, useEffect } from "react";
+import { useState, useMemo, useEffect, useCallback } from "react";
+import { shopService } from "@delivery-system/api-client";
+import type { ShopExtended } from "@delivery-system/types";
 import {
   Shop,
   ShopFilters,
@@ -8,63 +11,22 @@ import {
   ShopFormData,
 } from "@/types/company";
 
-// Mock data - moved outside the hook to prevent redefinition on every call
-const mockShops: Shop[] = [
-  {
-    id: "1",
-    name: "Downtown Store",
-    address: "123 Main St, New York, NY 10001",
-    status: "Active",
-    companyId: "1",
-    createdAt: "2023-01-15T10:30:00Z",
-    updatedAt: "2024-01-08T14:20:00Z",
-  },
-  {
-    id: "2",
-    name: "Mall Location",
-    address: "456 Shopping Center, New York, NY 10002",
-    status: "Active",
-    companyId: "1",
-    createdAt: "2023-02-20T11:15:00Z",
-    updatedAt: "2024-01-07T16:30:00Z",
-  },
-  {
-    id: "3",
-    name: "Airport Branch",
-    address: "789 Airport Rd, New York, NY 10003",
-    status: "Inactive",
-    companyId: "1",
-    createdAt: "2023-03-10T09:45:00Z",
-    updatedAt: "2023-12-15T13:20:00Z",
-  },
-  {
-    id: "4",
-    name: "West Side Shop",
-    address: "321 West Ave, Los Angeles, CA 90210",
-    status: "Active",
-    companyId: "2",
-    createdAt: "2023-04-05T14:20:00Z",
-    updatedAt: "2024-01-06T10:15:00Z",
-  },
-  {
-    id: "5",
-    name: "Beach Store",
-    address: "654 Beach Blvd, Los Angeles, CA 90211",
-    status: "Active",
-    companyId: "2",
-    createdAt: "2023-05-12T16:30:00Z",
-    updatedAt: "2024-01-05T12:45:00Z",
-  },
-];
+// Helper to convert BE ShopExtended to FE Shop type
+const mapToFEShop = (beShop: ShopExtended, companyId: string): Shop => ({
+  id: beShop.id.toString(),
+  name: beShop.shopName,
+  address: beShop.address || `Location ${beShop.locationId}`, // Using locationId as fallback
+  status: beShop.status || 'Active',
+  companyId: companyId,
+  createdAt: beShop.createdAt || new Date().toISOString(),
+  updatedAt: beShop.updatedAt || new Date().toISOString(),
+});
 
 export function useShopList(companyId: string) {
   const [shops, setShops] = useState<Shop[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
-  // Filter shops based on companyId when it changes
-  useEffect(() => {
-    const filtered = mockShops.filter((shop) => shop.companyId === companyId);
-    setShops(filtered);
-  }, [companyId]);
   const [filters, setFilters] = useState<ShopFilters>({
     search: "",
     status: "all",
@@ -76,13 +38,54 @@ export function useShopList(companyId: string) {
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 10;
 
+  // Fetch shops from API
+  const fetchShops = useCallback(async () => {
+    if (!companyId) {
+      setShops([]);
+      setLoading(false);
+      return;
+    }
+
+    try {
+      setLoading(true);
+      setError(null);
+
+      const beShops = await shopService.getAllShopsByCompany(
+          parseInt(companyId),
+          {
+            // BE doesn't support these yet, but sending for future compatibility
+            page: currentPage,
+            limit: itemsPerPage,
+            search: filters.search !== "" ? filters.search : undefined,
+            sortField: sortOption.field,
+            sortDirection: sortOption.direction,
+            status: filters.status !== "all" ? filters.status : undefined,
+          }
+      );
+
+      const mappedShops = beShops.map(shop => mapToFEShop(shop, companyId));
+      setShops(mappedShops);
+    } catch (err) {
+      console.error('Failed to fetch shops:', err);
+      setError('Failed to load shops');
+      setShops([]);
+    } finally {
+      setLoading(false);
+    }
+  }, [companyId, currentPage, filters, sortOption]);
+
+  useEffect(() => {
+    fetchShops();
+  }, [fetchShops]);
+
+  // Client-side filtering and sorting (until BE supports it)
   const filteredAndSortedShops = useMemo(() => {
     let filtered = shops.filter((shop) => {
       const matchesSearch =
-        shop.name.toLowerCase().includes(filters.search.toLowerCase()) ||
-        shop.address.toLowerCase().includes(filters.search.toLowerCase());
+          shop.name.toLowerCase().includes(filters.search.toLowerCase()) ||
+          shop.address.toLowerCase().includes(filters.search.toLowerCase());
       const matchesStatus =
-        filters.status === "all" || shop.status === filters.status;
+          filters.status === "all" || shop.status === filters.status;
 
       return matchesSearch && matchesStatus;
     });
@@ -103,35 +106,59 @@ export function useShopList(companyId: string) {
     return filtered;
   }, [shops, filters, sortOption]);
 
+  // Client-side pagination
   const totalPages = Math.ceil(filteredAndSortedShops.length / itemsPerPage);
   const paginatedShops = filteredAndSortedShops.slice(
-    (currentPage - 1) * itemsPerPage,
-    currentPage * itemsPerPage,
+      (currentPage - 1) * itemsPerPage,
+      currentPage * itemsPerPage,
   );
 
-  const addShop = (shopData: ShopFormData) => {
-    const newShop: Shop = {
-      id: Date.now().toString(),
-      ...shopData,
-      companyId,
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString(),
-    };
-    setShops((prev) => [newShop, ...prev]);
+  const addShop = async (shopData: ShopFormData) => {
+    try {
+      // Note: We need a locationId here, which the FE doesn't have
+      // This is a gap that needs BE/FE alignment
+      await shopService.createShop(parseInt(companyId), {
+        shopName: shopData.name,
+        locationId: 1, // Default location - this needs proper handling
+      });
+
+      // Refresh the list
+      await fetchShops();
+    } catch (err) {
+      console.error('Failed to create shop:', err);
+      throw err;
+    }
   };
 
-  const updateShop = (id: string, shopData: ShopFormData) => {
-    setShops((prev) =>
-      prev.map((shop) =>
-        shop.id === id
-          ? { ...shop, ...shopData, updatedAt: new Date().toISOString() }
-          : shop,
-      ),
-    );
+  const updateShop = async (id: string, shopData: ShopFormData) => {
+    try {
+      await shopService.updateShop(
+          parseInt(companyId),
+          parseInt(id),
+          {
+            shopName: shopData.name,
+            // locationId could be updated here if we had it
+          }
+      );
+
+      // Refresh the list
+      await fetchShops();
+    } catch (err) {
+      console.error('Failed to update shop:', err);
+      throw err;
+    }
   };
 
-  const deleteShop = (id: string) => {
-    setShops((prev) => prev.filter((shop) => shop.id !== id));
+  const deleteShop = async (id: string) => {
+    try {
+      await shopService.deleteShop(parseInt(companyId), parseInt(id));
+
+      // Refresh the list
+      await fetchShops();
+    } catch (err) {
+      console.error('Failed to delete shop:', err);
+      throw err;
+    }
   };
 
   const getShopById = (id: string) => {
@@ -172,6 +199,8 @@ export function useShopList(companyId: string) {
     totalPages,
     itemsPerPage,
     stats,
+    loading,
+    error,
     addShop,
     updateShop,
     deleteShop,
@@ -180,5 +209,6 @@ export function useShopList(companyId: string) {
     updateSort,
     goToPage,
     totalItems: filteredAndSortedShops.length,
+    refetch: fetchShops,
   };
 }

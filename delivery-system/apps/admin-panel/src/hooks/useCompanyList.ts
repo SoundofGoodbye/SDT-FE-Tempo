@@ -1,6 +1,9 @@
+//delivery-system/apps/admin-panel/src/hooks/useCompanyList.ts
 "use client";
 
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect, useCallback } from "react";
+import { companyService } from "@delivery-system/api-client";
+import type { CompanyExtended } from "@delivery-system/types";
 import {
   Company,
   CompanyFilters,
@@ -8,211 +11,30 @@ import {
   CompanyFormData,
 } from "@/types/company";
 
-// Mock data
-const mockCompanies: Company[] = [
-  {
-    id: "1",
-    name: "Acme Logistics",
-    email: "contact@acmelogistics.com",
-    phone: "+1 (555) 123-4567",
-    address: "123 Business Ave, New York, NY 10001",
-    website: "https://acmelogistics.com",
-    description: "Leading logistics solutions provider",
-    shopsCount: 12,
-    usersCount: 45,
-    productsCount: 234,
-    revenue: 125000,
-    plan: "Pro",
-    status: "Active",
-    createdAt: "2023-01-15T10:30:00Z",
-    updatedAt: "2024-01-08T14:20:00Z",
-  },
-  {
-    id: "2",
-    name: "Global Shipping Co",
-    email: "info@globalshipping.com",
-    phone: "+1 (555) 987-6543",
-    address: "456 Commerce St, Los Angeles, CA 90210",
-    website: "https://globalshipping.com",
-    description: "International shipping and freight services",
-    shopsCount: 8,
-    usersCount: 32,
-    productsCount: 156,
-    revenue: 89000,
-    plan: "Pro",
-    status: "Active",
-    createdAt: "2023-03-22T09:15:00Z",
-    updatedAt: "2024-01-07T11:45:00Z",
-  },
-  {
-    id: "3",
-    name: "FastTrack Delivery",
-    email: "support@fasttrack.com",
-    phone: "+1 (555) 456-7890",
-    address: "789 Speed Lane, Chicago, IL 60601",
-    website: "https://fasttrackdelivery.com",
-    description: "Same-day delivery specialists",
-    shopsCount: 5,
-    usersCount: 18,
-    productsCount: 89,
-    revenue: 45000,
-    plan: "Basic",
-    status: "Active",
-    createdAt: "2023-06-10T16:45:00Z",
-    updatedAt: "2024-01-06T09:30:00Z",
-  },
-  {
-    id: "4",
-    name: "Metro Transport",
-    email: "hello@metrotransport.com",
-    phone: "+1 (555) 321-0987",
-    address: "321 Transit Blvd, Houston, TX 77001",
-    description: "Urban transportation solutions",
-    shopsCount: 15,
-    usersCount: 67,
-    productsCount: 312,
-    revenue: 156000,
-    plan: "Pro",
-    status: "Active",
-    createdAt: "2022-11-05T13:20:00Z",
-    updatedAt: "2024-01-05T16:10:00Z",
-  },
-  {
-    id: "5",
-    name: "Coastal Freight",
-    email: "contact@coastalfreight.com",
-    phone: "+1 (555) 654-3210",
-    address: "654 Harbor Dr, Miami, FL 33101",
-    website: "https://coastalfreight.com",
-    description: "Coastal and marine logistics",
-    shopsCount: 3,
-    usersCount: 12,
-    productsCount: 67,
-    revenue: 28000,
-    plan: "Basic",
-    status: "Inactive",
-    createdAt: "2023-08-18T11:00:00Z",
-    updatedAt: "2023-12-20T14:30:00Z",
-  },
-  {
-    id: "6",
-    name: "Express Solutions",
-    email: "info@expresssolutions.com",
-    phone: "+1 (555) 789-0123",
-    address: "987 Express Way, Phoenix, AZ 85001",
-    description: "Express delivery and courier services",
-    shopsCount: 7,
-    usersCount: 25,
-    productsCount: 134,
-    revenue: 67000,
-    plan: "Basic",
-    status: "Active",
-    createdAt: "2023-04-12T08:45:00Z",
-    updatedAt: "2024-01-04T12:15:00Z",
-  },
-  {
-    id: "7",
-    name: "Prime Logistics",
-    email: "contact@primelogistics.com",
-    phone: "+1 (555) 147-2580",
-    address: "147 Prime St, Seattle, WA 98101",
-    website: "https://primelogistics.com",
-    description: "Premium logistics and supply chain management",
-    shopsCount: 20,
-    usersCount: 89,
-    productsCount: 445,
-    revenue: 234000,
-    plan: "Pro",
-    status: "Active",
-    createdAt: "2022-09-30T15:30:00Z",
-    updatedAt: "2024-01-08T10:45:00Z",
-  },
-  {
-    id: "8",
-    name: "Swift Cargo",
-    email: "support@swiftcargo.com",
-    phone: "+1 (555) 369-2580",
-    address: "369 Swift Ave, Denver, CO 80201",
-    description: "Cargo and freight transportation",
-    shopsCount: 4,
-    usersCount: 16,
-    productsCount: 78,
-    revenue: 34000,
-    plan: "Basic",
-    status: "Suspended",
-    createdAt: "2023-07-25T12:00:00Z",
-    updatedAt: "2023-12-15T09:20:00Z",
-  },
-  {
-    id: "9",
-    name: "Reliable Routes",
-    email: "info@reliableroutes.com",
-    phone: "+1 (555) 258-1470",
-    address: "258 Route Rd, Boston, MA 02101",
-    website: "https://reliableroutes.com",
-    description: "Reliable routing and delivery services",
-    shopsCount: 9,
-    usersCount: 38,
-    productsCount: 189,
-    revenue: 78000,
-    plan: "Pro",
-    status: "Active",
-    createdAt: "2023-02-14T14:15:00Z",
-    updatedAt: "2024-01-03T13:25:00Z",
-  },
-  {
-    id: "10",
-    name: "Urban Delivery",
-    email: "hello@urbandelivery.com",
-    phone: "+1 (555) 741-9630",
-    address: "741 Urban St, Portland, OR 97201",
-    description: "Urban and suburban delivery network",
-    shopsCount: 6,
-    usersCount: 22,
-    productsCount: 112,
-    revenue: 52000,
-    plan: "Basic",
-    status: "Active",
-    createdAt: "2023-05-08T10:20:00Z",
-    updatedAt: "2024-01-02T15:40:00Z",
-  },
-  {
-    id: "11",
-    name: "National Freight",
-    email: "contact@nationalfreight.com",
-    phone: "+1 (555) 852-9630",
-    address: "852 National Blvd, Atlanta, GA 30301",
-    website: "https://nationalfreight.com",
-    description: "Nationwide freight and logistics solutions",
-    shopsCount: 25,
-    usersCount: 112,
-    productsCount: 567,
-    revenue: 345000,
-    plan: "Pro",
-    status: "Active",
-    createdAt: "2022-08-12T09:30:00Z",
-    updatedAt: "2024-01-08T11:20:00Z",
-  },
-  {
-    id: "12",
-    name: "Quick Ship",
-    email: "support@quickship.com",
-    phone: "+1 (555) 963-7410",
-    address: "963 Quick Ave, Las Vegas, NV 89101",
-    description: "Quick shipping and express delivery",
-    shopsCount: 2,
-    usersCount: 8,
-    productsCount: 45,
-    revenue: 18000,
-    plan: "Basic",
-    status: "Active",
-    createdAt: "2023-09-20T16:45:00Z",
-    updatedAt: "2024-01-01T08:15:00Z",
-  },
-];
+// Helper to convert BE CompanyExtended to FE Company type
+const mapToFECompany = (beCompany: CompanyExtended): Company => ({
+  id: beCompany.id.toString(),
+  name: beCompany.companyName,
+  email: beCompany.email || '',
+  phone: beCompany.phone || '',
+  address: beCompany.address || '',
+  website: beCompany.website,
+  description: beCompany.description,
+  shopsCount: beCompany.shopsCount || 0,
+  usersCount: beCompany.usersCount || 0,
+  productsCount: beCompany.productsCount || 0,
+  revenue: beCompany.revenue || 0,
+  plan: beCompany.plan || 'Basic',
+  status: beCompany.status || 'Active',
+  createdAt: beCompany.createdAt || new Date().toISOString(),
+  updatedAt: beCompany.updatedAt || new Date().toISOString(),
+});
 
 export function useCompanyList() {
-  const [companies, setCompanies] = useState<Company[]>(mockCompanies);
+  const [companies, setCompanies] = useState<Company[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
   const [filters, setFilters] = useState<CompanyFilters>({
     search: "",
     plan: "all",
@@ -225,15 +47,48 @@ export function useCompanyList() {
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 10;
 
+  // Fetch companies from API
+  const fetchCompanies = useCallback(async () => {
+    try {
+      setLoading(true);
+      setError(null);
+
+      // Note: BE doesn't support these params yet, but we're sending them for future compatibility
+      const beCompanies = await companyService.getAllCompanies({
+        page: currentPage,
+        limit: itemsPerPage,
+        search: filters.search !== "" ? filters.search : undefined,
+        sortField: sortOption.field,
+        sortDirection: sortOption.direction,
+        plan: filters.plan !== "all" ? filters.plan : undefined,
+        status: filters.status !== "all" ? filters.status : undefined,
+      });
+
+      const mappedCompanies = beCompanies.map(mapToFECompany);
+      setCompanies(mappedCompanies);
+    } catch (err) {
+      console.error('Failed to fetch companies:', err);
+      setError('Failed to load companies');
+      setCompanies([]);
+    } finally {
+      setLoading(false);
+    }
+  }, [currentPage, filters, sortOption]);
+
+  useEffect(() => {
+    fetchCompanies();
+  }, [fetchCompanies]);
+
+  // Since BE doesn't support filtering/sorting yet, we do it client-side
   const filteredAndSortedCompanies = useMemo(() => {
     let filtered = companies.filter((company) => {
       const matchesSearch =
-        company.name.toLowerCase().includes(filters.search.toLowerCase()) ||
-        company.email.toLowerCase().includes(filters.search.toLowerCase());
+          company.name.toLowerCase().includes(filters.search.toLowerCase()) ||
+          company.email.toLowerCase().includes(filters.search.toLowerCase());
       const matchesPlan =
-        filters.plan === "all" || company.plan === filters.plan;
+          filters.plan === "all" || company.plan === filters.plan;
       const matchesStatus =
-        filters.status === "all" || company.status === filters.status;
+          filters.status === "all" || company.status === filters.status;
 
       return matchesSearch && matchesPlan && matchesStatus;
     });
@@ -256,40 +111,53 @@ export function useCompanyList() {
     return filtered;
   }, [companies, filters, sortOption]);
 
+  // Client-side pagination (until BE supports it)
   const totalPages = Math.ceil(
-    filteredAndSortedCompanies.length / itemsPerPage,
+      filteredAndSortedCompanies.length / itemsPerPage,
   );
   const paginatedCompanies = filteredAndSortedCompanies.slice(
-    (currentPage - 1) * itemsPerPage,
-    currentPage * itemsPerPage,
+      (currentPage - 1) * itemsPerPage,
+      currentPage * itemsPerPage,
   );
 
-  const addCompany = (companyData: CompanyFormData) => {
-    const newCompany: Company = {
-      id: Date.now().toString(),
-      ...companyData,
-      shopsCount: 0,
-      usersCount: 0,
-      productsCount: 0,
-      revenue: 0,
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString(),
-    };
-    setCompanies((prev) => [newCompany, ...prev]);
+  const addCompany = async (companyData: CompanyFormData) => {
+    try {
+      const newCompany = await companyService.createCompany({
+        companyName: companyData.name,
+      });
+
+      // Refresh the list
+      await fetchCompanies();
+    } catch (err) {
+      console.error('Failed to create company:', err);
+      throw err;
+    }
   };
 
-  const updateCompany = (id: string, companyData: CompanyFormData) => {
-    setCompanies((prev) =>
-      prev.map((company) =>
-        company.id === id
-          ? { ...company, ...companyData, updatedAt: new Date().toISOString() }
-          : company,
-      ),
-    );
+  const updateCompany = async (id: string, companyData: CompanyFormData) => {
+    try {
+      await companyService.updateCompany(parseInt(id), {
+        companyName: companyData.name,
+      });
+
+      // Refresh the list
+      await fetchCompanies();
+    } catch (err) {
+      console.error('Failed to update company:', err);
+      throw err;
+    }
   };
 
-  const deleteCompany = (id: string) => {
-    setCompanies((prev) => prev.filter((company) => company.id !== id));
+  const deleteCompany = async (id: string) => {
+    try {
+      await companyService.deleteCompany(parseInt(id));
+
+      // Refresh the list
+      await fetchCompanies();
+    } catch (err) {
+      console.error('Failed to delete company:', err);
+      throw err;
+    }
   };
 
   const getCompanyById = (id: string) => {
@@ -334,6 +202,8 @@ export function useCompanyList() {
     totalPages,
     itemsPerPage,
     stats,
+    loading,
+    error,
     addCompany,
     updateCompany,
     deleteCompany,
@@ -342,5 +212,6 @@ export function useCompanyList() {
     updateSort,
     goToPage,
     totalItems: filteredAndSortedCompanies.length,
+    refetch: fetchCompanies,
   };
 }

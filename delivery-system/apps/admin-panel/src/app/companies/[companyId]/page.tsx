@@ -1,3 +1,6 @@
+// delivery-system/apps/admin-panel/src/app/companies/[companyId]/page.tsx
+
+
 "use client";
 
 import React, { useState } from "react";
@@ -36,14 +39,35 @@ import {
   ChevronLeft,
   ChevronRight,
 } from "lucide-react";
-import { useCompanyList } from "@/hooks/useCompanyList";
+import { useCompany } from "@delivery-system/hooks";
 import { useShopList } from "@/hooks/useShopList";
-import { Shop, ShopFormData } from "@/types/company";
+import {Company, Shop, ShopFormData} from "@/types/company";
 import ShopTable from "@/components/shops/ShopTable";
 import ShopFormModal from "@/components/shops/ShopFormModal";
 import ForbiddenPage from "@/components/system/ForbiddenPage";
 import Link from "next/link";
 import { hasRole, getCompanyId } from "@delivery-system/api-client";
+import {CompanyExtended} from "@delivery-system/types";
+
+//TODO: REMOVE THIS MAPPER FUNCTION ONCE BE RETURNS ALL VALUES
+// Helper to convert BE CompanyExtended to FE Company type
+const mapToFECompany = (beCompany: CompanyExtended): Company => ({
+  id: beCompany.id.toString(),
+  name: beCompany.companyName,
+  email: beCompany.email || '',
+  phone: beCompany.phone || '',
+  address: beCompany.address || '',
+  website: beCompany.website,
+  description: beCompany.description,
+  shopsCount: beCompany.shopsCount || 0,
+  usersCount: beCompany.usersCount || 0,
+  productsCount: beCompany.productsCount || 0,
+  revenue: beCompany.revenue || 0,
+  plan: beCompany.plan || 'Basic',
+  status: beCompany.status || 'Active',
+  createdAt: beCompany.createdAt || new Date().toISOString(),
+  updatedAt: beCompany.updatedAt || new Date().toISOString(),
+});
 
 export default function CompanyDetailPage() {
   const params = useParams();
@@ -62,7 +86,6 @@ export default function CompanyDetailPage() {
   // Check if user has access to this company
   const hasAccess = isAdmin || (isManager && userCompanyId === Number(companyId));
 
-  const { getCompanyById } = useCompanyList();
   const {
     shops,
     filters,
@@ -79,7 +102,7 @@ export default function CompanyDetailPage() {
     totalItems,
   } = useShopList(companyId);
 
-  const company = getCompanyById(companyId);
+  const { company: companyData, loading: companyLoading, error: companyError } = useCompany(companyId);
 
   if (!hasAccess) {
     return (
@@ -90,7 +113,7 @@ export default function CompanyDetailPage() {
     );
   }
 
-  if (!company) {
+  if (companyError || !companyData) {
     return (
         <div className="bg-background p-6 md:p-8 w-full min-h-screen">
           <Card>
@@ -98,7 +121,7 @@ export default function CompanyDetailPage() {
               <Building2 className="h-12 w-12 text-muted-foreground mb-4" />
               <h3 className="text-lg font-semibold mb-2">Company not found</h3>
               <p className="text-muted-foreground text-center mb-4">
-                The company you're looking for doesn't exist or has been removed.
+                {companyError || "The company you're looking for doesn't exist or has been removed."}
               </p>
               <Link href={isAdmin ? "/companies" : "/insights"}>
                 <Button variant="outline">
@@ -111,6 +134,7 @@ export default function CompanyDetailPage() {
         </div>
     );
   }
+  const company = mapToFECompany(companyData);
 
   const handleAddShop = () => {
     setEditingShop(null);
@@ -383,7 +407,7 @@ export default function CompanyDetailPage() {
 
                 <Select
                     value={filters.status}
-                    onValueChange={(value) =>
+                    onValueChange={(value : boolean) =>
                         updateFilters({ status: value as any })
                     }
                 >
@@ -399,7 +423,7 @@ export default function CompanyDetailPage() {
 
                 <Select
                     value={`${sortOption.field}-${sortOption.direction}`}
-                    onValueChange={(value) => {
+                    onValueChange={(value : string) => {
                       const [field, direction] = value.split("-") as [
                         any,
                             "asc" | "desc",
